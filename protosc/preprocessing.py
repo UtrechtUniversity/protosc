@@ -1,5 +1,24 @@
 import cv2
 import numpy as np
+from protosc.pipeline import BasePipeElement
+
+
+class GreyScale(BasePipeElement):
+    def execute(self, img):
+        return greyscale(img)
+
+
+class ViolaJones(BasePipeElement):
+    def __init__(self, add_perc=20):
+        self.add_perc = add_perc
+
+    def execute(self, img):
+        return viola_jones(img, add_perc=self.add_perc)
+
+
+class CutCircle(BasePipeElement):
+    def execute(self, img):
+        return cut_circle(img)
 
 
 def greyscale(img):
