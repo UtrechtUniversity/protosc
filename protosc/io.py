@@ -1,9 +1,5 @@
-import numpy as np
-from PIL import Image
+import cv2
 
 
-def read_image(fp, grayscale=True):
-    img = Image.open(fp)
-    if grayscale:
-        img = img.convert('LA')
-    return np.array(img)[:, :, 0]
+def read_image(fp):
+    return cv2.imread(str(fp))

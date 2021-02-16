@@ -11,7 +11,7 @@ setup(
     packages=find_packages(exclude=['data', 'docs', 'tests', 'examples']),
     python_requires='~=3.6',
     install_requires=[
-        'Pillow',
         'numpy',
+        'opencv-python'
     ]
 )
