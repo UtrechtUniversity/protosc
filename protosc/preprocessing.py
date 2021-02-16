@@ -7,16 +7,21 @@ from pathlib import Path
 def execute():
     """ Execute preprocessing for all images """
     df = create_csv()
-    # df['preprocessed'] = ''
+    final = []
 
     for image_id in range(df.shape[0]):
         file = df['file'][image_id]
-        final = preprocessing(file)
+        try:
+            final.append(preprocessing(file))
+        except:
+            next
+        # final = preprocessing(file)
         # df.loc[image_id, 'preprocessed'] = [final]
         # cv2.imwrite(f'{image_id}_final.jpg', final)
 
-    df.to_csv('overview.csv')
-    return df
+    # df.to_csv('overview.csv')
+
+    return final
 
 def preprocessing(img):
     """ Preprocess image to get gray-scaled, circled image of the face """
