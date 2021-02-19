@@ -15,6 +15,10 @@ class ViolaJones(BasePipeElement):
     def execute(self, img):
         return viola_jones(img, add_perc=self.add_perc)
 
+    @property
+    def name(self):
+        return super(ViolaJones, self).name + f"_{self.add_perc}"
+
 
 class CutCircle(BasePipeElement):
     def execute(self, img):
@@ -44,12 +48,16 @@ def viola_jones(img, add_perc=20):
         roi_color = img[round(y*margin_min):round(y*margin_plus) + h,
                         round(x*margin_min):round(x*margin_plus) + w]
         roi_color = cv2.resize(roi_color, (200, 200))
+
+    if len(roi_color.shape) == 2:
+        roi_color = roi_color.reshape(*roi_color.shape, 1)
     return roi_color
 #         cv2.imwrite(files[i].stem + '_faces.jpg', roi_color)
 
 
 def cut_circle(img):
     shape = img.shape
+    print(shape)
     assert len(img.shape) >= 2
 
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
@@ -60,5 +68,5 @@ def cut_circle(img):
     circle_mask = (np.sqrt(X**2 + Y**2).reshape(shape[:2]) >
                    min(img.shape[0]//2, img.shape[1]//2))
     new_img = np.copy(img)
-    new_img[circle_mask] = 0
+    new_img[circle_mask, :] = 0
     return new_img
