@@ -1,4 +1,4 @@
-from protosc.pipeline import BasePipeElement
+from protosc.pipeline import BasePipeElement, Pipeline
 from protosc.utils import is_iterable
 
 
@@ -7,35 +7,63 @@ class PipeComplex():
         self._pipe_elements = {}
         self._pipe_tree = {}
         for pipe in pipes:
-            tree_pointer = self._pipe_tree
-            if isinstance(pipe, BasePipeElement):
-                elements = [pipe]
-            else:
-                elements = pipe._elements
-
-            pipe_name = "+".join([x.name for x in pipe._elements])
-            for elem in elements:
-                if elem.name in tree_pointer:
-                    tree_pointer = tree_pointer[elem.name]
-                else:
-                    tree_pointer[elem.name] = {}
-                    tree_pointer = tree_pointer[elem.name]
-                if elem.name not in self._pipe_elements:
-                    self._pipe_elements[elem.name] = elem
-            tree_pointer[None] = pipe_name
+            self.add_pipeline(pipe)
 
     def __str__(self):
-        def get_pipe_names(pipe_tree, cur_elements):
-            cur_str = ""
+        return "\n".join([str(p) for p in self])
+
+    def __iadd__(self, other):
+        if isinstance(other, PipeComplex):
+            self.add_complex(other)
+        if isinstance(other, (Pipeline, BasePipeElement)):
+            self.add_pipeline(other)
+        return self
+
+    def __add__(self, other):
+        my_pipelines = [l for l in self]
+        if isinstance(other, PipeComplex):
+            other_pipelines = [l for l in other]
+        elif isinstance(other, Pipeline):
+            other_pipelines = [other]
+        elif isinstance(other, BasePipeElement):
+            other_pipelines = [Pipeline(other)]
+        else:
+            raise NotImplementedError
+        cls = self.__class__
+        return cls(*my_pipelines, *other_pipelines)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __iter__(self):
+        def generate_pipelines(pipe_tree, cur_elements):
             for key, new_pipe_tree in pipe_tree.items():
                 if key is None:
-                    cur_str += " -> ".join(cur_elements) + "\n"
+                    yield Pipeline(*cur_elements)
                 else:
-                    cur_elements.append(key)
-                    cur_str += get_pipe_names(new_pipe_tree, cur_elements)
+                    cur_elements.append(self._pipe_elements[key])
+                    yield from generate_pipelines(new_pipe_tree, cur_elements)
                     cur_elements.pop()
-            return cur_str
-        return get_pipe_names(self._pipe_tree, [])
+        return generate_pipelines(self._pipe_tree, [])
+
+    def add_complex(self, other):
+        for pipeline in other:
+            self.add_pipeline(pipeline)
+
+    def add_pipeline(self, other):
+        if isinstance(other, BasePipeElement):
+            other = Pipeline(other)
+        tree_pointer = self._pipe_tree
+        for elem in other._elements:
+            if elem.name in tree_pointer:
+                tree_pointer = tree_pointer[elem.name]
+            else:
+                tree_pointer[elem.name] = {}
+                tree_pointer = tree_pointer[elem.name]
+
+            if elem.name not in self._pipe_elements:
+                self._pipe_elements[elem.name] = elem
+        tree_pointer[None] = other.name
 
     def execute(self, package, max_depth=0):
         if is_iterable(package) and max_depth > 0:
@@ -52,7 +80,3 @@ class PipeComplex():
                     results.update(get_result(new_package, new_pipe_tree))
             return results
         return get_result(package, self._pipe_tree)
-#         new_package = package
-#         for element in self._elements:
-#             new_package = element.execute(new_package)
-#         return new_package

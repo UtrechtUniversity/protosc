@@ -3,13 +3,13 @@ from abc import ABC, abstractmethod
 from protosc.utils import is_iterable
 
 
-class BasePipe(ABC):
-    def __init__(self, *args):
+class Pipeline(ABC):
+    def __init__(self, *pipe_elements):
         self._elements = []
-        for arg in args:
+        for arg in pipe_elements:
             if isinstance(arg, BasePipeElement):
                 self._elements.append(arg)
-            elif isinstance(arg, BasePipe):
+            elif isinstance(arg, Pipeline):
                 self._elements.extend(arg._elements)
             else:
                 raise ValueError(f"Cannot extend pipe with type: {type(arg)}")
@@ -24,13 +24,28 @@ class BasePipe(ABC):
         return new_package
 
     def __mul__(self, other):
-        return BasePipe(self, other)
+        if isinstance(other, (Pipeline, BasePipeElement)):
+            return Pipeline(self, other)
+        raise NotImplementedError
 
     def __rmul__(self, other):
-        return BasePipe(other, self)
+        return Pipeline(other, self)
+
+    def __add__(self, other):
+        from protosc.pipe_complex import PipeComplex
+        if isinstance(other, (Pipeline, BasePipeElement)):
+            return PipeComplex(self, other)
+        raise NotImplementedError
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
     def __str__(self):
         return "Pipe: " + " -> ".join([x.name for x in self._elements])
+
+    @property
+    def name(self):
+        return "+".join([x.name for x in self._elements])
 
 
 class BasePipeElement(ABC):
@@ -39,11 +54,12 @@ class BasePipeElement(ABC):
         raise NotImplementedError
 
     def __mul__(self, other):
-        return BasePipe(self, other)
+        return Pipeline(self, other)
 
-    def __rmul__(self, other):
-        return BasePipe(other, self)
+#     def __rmul__(self, other):
+#         return BasePipe(other, self)
 
     @property
     def name(self):
         return type(self).__name__
+
