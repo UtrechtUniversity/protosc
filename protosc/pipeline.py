@@ -63,8 +63,6 @@ class BasePipeElement(ABC):
             from protosc.pipe_complex import PipeComplex
             return PipeComplex(self, other)
         return NotImplemented
-#     def __rmul__(self, other):
-#         return BasePipe(other, self)
 
     @property
     def name(self):
