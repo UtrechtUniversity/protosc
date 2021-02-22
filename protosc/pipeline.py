@@ -26,7 +26,7 @@ class Pipeline(ABC):
     def __mul__(self, other):
         if isinstance(other, (Pipeline, BasePipeElement)):
             return Pipeline(self, other)
-        raise NotImplementedError
+        return NotImplemented
 
     def __rmul__(self, other):
         return Pipeline(other, self)
@@ -35,7 +35,7 @@ class Pipeline(ABC):
         from protosc.pipe_complex import PipeComplex
         if isinstance(other, (Pipeline, BasePipeElement)):
             return PipeComplex(self, other)
-        raise NotImplementedError
+        return NotImplemented
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -54,12 +54,18 @@ class BasePipeElement(ABC):
         raise NotImplementedError
 
     def __mul__(self, other):
-        return Pipeline(self, other)
+        if isinstance(other, BasePipeElement):
+            return Pipeline(self, other)
+        return NotImplemented
 
+    def __add__(self, other):
+        if isinstance(other, BasePipeElement):
+            from protosc.pipe_complex import PipeComplex
+            return PipeComplex(self, other)
+        return NotImplemented
 #     def __rmul__(self, other):
 #         return BasePipe(other, self)
 
     @property
     def name(self):
         return type(self).__name__
-

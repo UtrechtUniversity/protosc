@@ -28,12 +28,34 @@ class PipeComplex():
         elif isinstance(other, BasePipeElement):
             other_pipelines = [Pipeline(other)]
         else:
-            raise NotImplementedError
+            return NotImplemented
         cls = self.__class__
         return cls(*my_pipelines, *other_pipelines)
 
     def __radd__(self, other):
         return self.__add__(other)
+
+    def __mul__(self, other):
+        if isinstance(other, PipeComplex):
+            my_pipelines = [Pipeline(p, other) for p in self]
+            other_pipelines = [Pipeline(p, other) for p in self]
+            new_pipelines = []
+            for my_pipe in my_pipelines:
+                for other_pipe in other_pipelines:
+                    new_pipelines.append(Pipeline(my_pipe, other_pipe))
+            return self.__class__(*new_pipelines)
+        if isinstance(other, (Pipeline, BasePipeElement)):
+            all_pipelines = [Pipeline(p, other) for p in self]
+            return __class__(*all_pipelines)
+        return NotImplemented
+
+    def __rmul__(self, other):
+        if isinstance(other, PipeComplex):
+            raise ValueError("Uhuh?")
+        if isinstance(other, (Pipeline, BasePipeElement)):
+            all_pipelines = [Pipeline(other, p) for p in self]
+            return self.__class__(*all_pipelines)
+        return NotImplemented
 
     def __iter__(self):
         def generate_pipelines(pipe_tree, cur_elements):
