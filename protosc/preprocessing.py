@@ -57,7 +57,6 @@ def viola_jones(img, add_perc=20):
 
 def cut_circle(img):
     shape = img.shape
-    print(shape)
     assert len(img.shape) >= 2
 
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
