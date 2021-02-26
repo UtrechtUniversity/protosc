@@ -1,8 +1,26 @@
+from protosc.pipeline import BasePipeElement
 import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.sparse import csr_matrix
 
 
+class FourierFeatures(BasePipeElement):
+    def __init__(self, n_angular=8, n_spatial=7):
+        self.n_angular = n_angular
+        self.n_spatial = n_spatial
+
+    def execute(self, img):
+        return fourier_features(img, n_angular=self.n_angular,
+                                n_spatial=self.n_spatial)
+
+    @property
+    def name(self):
+        name = super(FourierFeatures, self).name
+        name += f"_a{self.n_angular}s{self.n_spatial}"
+        return name
+
+
+# TODO: use symmetry
 def transform_matrix(shape, n_angular=80, n_spatial=70, return_inverse=True,
                      return_ids=False, circle_cut=True):
     size = shape[0]*shape[1]
