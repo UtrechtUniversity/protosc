@@ -1,5 +1,5 @@
 from protosc.pipeline import BasePipeElement, Pipeline
-from protosc.utils import is_iterable
+from protosc.utils import get_new_level
 
 
 class PipeComplex():
@@ -87,9 +87,10 @@ class PipeComplex():
                 self._pipe_elements[elem.name] = elem
         tree_pointer[None] = other.name
 
-    def execute(self, package, max_depth=0):
-        if is_iterable(package) and max_depth > 0:
-            return [self.execute(part, max_depth-1) for part in package]
+    def execute(self, package, max_depth=None):
+        iterate, new_max_depth = get_new_level(package, max_depth)
+        if iterate:
+            return [self.execute(part, new_max_depth) for part in package]
 
         def get_result(package, pipe_tree):
             results = {}

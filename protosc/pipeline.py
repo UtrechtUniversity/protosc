@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from protosc.utils import is_iterable
+from protosc.utils import get_new_level
 
 
 class Pipeline(ABC):
@@ -14,9 +14,10 @@ class Pipeline(ABC):
             else:
                 raise ValueError(f"Cannot extend pipe with type: {type(arg)}")
 
-    def execute(self, package, max_depth=0):
-        if is_iterable(package) and max_depth > 0:
-            return [self.execute(part, max_depth-1) for part in package]
+    def execute(self, package, max_depth=None):
+        iterate, new_max_depth = get_new_level(package, max_depth)
+        if iterate:
+            return [self.execute(part, new_max_depth) for part in package]
 
         new_package = package
         for element in self._elements:
@@ -50,8 +51,14 @@ class Pipeline(ABC):
 
 class BasePipeElement(ABC):
     @abstractmethod
-    def execute(self, _):
+    def _execute(self, _):
         raise NotImplementedError
+
+    def execute(self, package, max_depth=None):
+        iterate, new_max_depth = get_new_level(package, max_depth)
+        if iterate:
+            return [self.execute(part, new_max_depth) for part in package]
+        return self._execute(package)
 
     def __mul__(self, other):
         if isinstance(other, BasePipeElement):
