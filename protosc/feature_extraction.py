@@ -5,23 +5,30 @@ from scipy.sparse import csr_matrix
 
 
 class FourierFeatures(BasePipeElement):
-    def __init__(self, n_angular=8, n_spatial=7):
+    def __init__(self, n_angular=8, n_spatial=7, circle_cut=True):
         self.n_angular = n_angular
         self.n_spatial = n_spatial
+        self.circle_cut = circle_cut
 
-    def execute(self, img):
-        return fourier_features(img, n_angular=self.n_angular,
-                                n_spatial=self.n_spatial)
+    def _execute(self, img):
+        return fourier_features(
+            img, n_angular=self.n_angular, n_spatial=self.n_spatial,
+            circle_cut=self.circle_cut)
 
     @property
     def name(self):
         name = super(FourierFeatures, self).name
-        name += f"_a{self.n_angular}s{self.n_spatial}"
+        name += f"_a{self.n_angular}s{self.n_spatial}c{self.circle_cut}"
         return name
 
 
+class AbsoluteFeatures(BasePipeElement):
+    def _execute(self, features):
+        return np.absolute(features)
+
+
 # TODO: use symmetry
-def transform_matrix(shape, n_angular=80, n_spatial=70, return_inverse=True,
+def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
                      return_ids=False, circle_cut=True):
     size = shape[0]*shape[1]
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
@@ -34,7 +41,8 @@ def transform_matrix(shape, n_angular=80, n_spatial=70, return_inverse=True,
 
     d_angle = 2*np.pi/n_angular
     d_radius = np.max(middle)/n_spatial
-    angle_id = ((angle/d_angle + 0.5*(n_angular+1))%n_angular).astype(int)
+    angle_id = ((angle/d_angle + 0.5*(2*n_angular+1))%(2*n_angular)).astype(int)
+    angle_id = angle_id % n_angular
     radius_id = (radius/d_radius).astype(int)
     all_id = angle_id+radius_id*n_angular
 

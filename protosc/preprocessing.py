@@ -4,7 +4,7 @@ from protosc.pipeline import BasePipeElement
 
 
 class GreyScale(BasePipeElement):
-    def execute(self, img):
+    def _execute(self, img):
         return greyscale(img)
 
 
@@ -12,7 +12,7 @@ class ViolaJones(BasePipeElement):
     def __init__(self, add_perc=20):
         self.add_perc = add_perc
 
-    def execute(self, img):
+    def _execute(self, img):
         return viola_jones(img, add_perc=self.add_perc)
 
     @property
@@ -21,7 +21,7 @@ class ViolaJones(BasePipeElement):
 
 
 class CutCircle(BasePipeElement):
-    def execute(self, img):
+    def _execute(self, img):
         return cut_circle(img)
 
 
@@ -44,6 +44,7 @@ def viola_jones(img, add_perc=20):
     # Crop face (with additional percentage) and safe as 200x200 pixels image
     margin_plus = 1 + add_perc / 100
     margin_min = 1 - add_perc / 100
+
     for (x, y, w, h) in faces:
         roi_color = img[round(y*margin_min):round(y*margin_plus) + h,
                         round(x*margin_min):round(x*margin_plus) + w]
