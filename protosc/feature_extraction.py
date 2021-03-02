@@ -18,7 +18,7 @@ class FourierFeatures(BasePipeElement):
     @property
     def name(self):
         name = super(FourierFeatures, self).name
-        name += f"_a{self.n_angular}s{self.n_spatial}"
+        name += f"_a{self.n_angular}s{self.n_spatial}c{self.circle_cut}"
         return name
 
 
