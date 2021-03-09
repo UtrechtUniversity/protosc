@@ -32,14 +32,26 @@ def greyscale(img):
 
 def viola_jones(img, add_perc=20):
     # Get orientation points of face in image
-    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades +
-                                        "haarcascade_frontalface_default.xml")
+    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     faces = faceCascade.detectMultiScale(
         img,
         scaleFactor=1.3,
         minNeighbors=3,
         minSize=(30, 30)
     )
+    if isinstance(faces, tuple):
+        value = 0.0
+        while isinstance(faces, tuple):
+            try:
+                faces = faceCascade.detectMultiScale(
+                    img,
+                    scaleFactor=round(value, 1),
+                    minNeighbors=3,
+                    minSize=(30, 30)
+                )
+            except:
+                next
+            value += 0.1
 
     # Crop face (with additional percentage) and safe as 200x200 pixels image
     margin_plus = 1 + add_perc / 100
@@ -52,8 +64,8 @@ def viola_jones(img, add_perc=20):
 
     if len(roi_color.shape) == 2:
         roi_color = roi_color.reshape(*roi_color.shape, 1)
+
     return roi_color
-#         cv2.imwrite(files[i].stem + '_faces.jpg', roi_color)
 
 
 def cut_circle(img):

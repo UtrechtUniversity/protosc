@@ -9,9 +9,13 @@ setup(
     description='protosc',
     long_description='more protosc',
     packages=find_packages(exclude=['data', 'docs', 'tests', 'examples']),
-    python_requires='~=3.6',
+    python_requires='~=3.7',
     install_requires=[
         'numpy',
-        'opencv-python'
+        'opencv-python',
+        'pandas',
+        'scipy',
+        'Pillow',
+        'gspread'
     ]
 )
