@@ -30,30 +30,54 @@ def greyscale(img):
     return img_array.reshape(*img_array.shape, 1)
 
 
+def search_face(img, classf_names):
+    d_scale = 0.8
+    classifiers = [cv2.CascadeClassifier(cv2.data.haarcascades + x)
+                   for x in classf_names]
+    n_search = 0
+    while d_scale > 0.05:
+        scale_factor = 1 + d_scale
+        for classf in classifiers:
+            faces = classf.detectMultiScale(
+                img,
+                scaleFactor=scale_factor,
+                minNeighbors=3,
+                minSize=(30, 30)
+            )
+            n_search += 1
+            if not isinstance(faces, tuple):
+                return faces
+        d_scale *= 0.8
+    raise ValueError("ViolaJones: Cannot find face in picture!")
+
+
 def viola_jones(img, add_perc=20):
+    classf_names = ["haarcascade_frontalface_default.xml",
+                    "haarcascade_frontalface_alt.xml",]
     # Get orientation points of face in image
-    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades +
-                                        "haarcascade_frontalface_default.xml")
+    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + classf_names[0])
     faces = faceCascade.detectMultiScale(
         img,
         scaleFactor=1.3,
         minNeighbors=3,
         minSize=(30, 30)
     )
+    if isinstance(faces, tuple):
+        faces = search_face(img, classf_names)
 
     # Crop face (with additional percentage) and safe as 200x200 pixels image
     margin_plus = 1 + add_perc / 100
     margin_min = 1 - add_perc / 100
 
     for (x, y, w, h) in faces:
-        roi_color = img[round(y*margin_min):round(y*margin_plus) + h,
-                        round(x*margin_min):round(x*margin_plus) + w]
+        roi_color = img[int(y*margin_min):int(y*margin_plus) + h,
+                        int(x*margin_min):int(x*margin_plus) + w]
         roi_color = cv2.resize(roi_color, (200, 200))
 
     if len(roi_color.shape) == 2:
         roi_color = roi_color.reshape(*roi_color.shape, 1)
+
     return roi_color
-#         cv2.imwrite(files[i].stem + '_faces.jpg', roi_color)
 
 
 def cut_circle(img):
