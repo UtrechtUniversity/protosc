@@ -87,37 +87,30 @@ class PipeComplex():
                 self._pipe_elements[elem.name] = elem
         tree_pointer[None] = other.name
 
-    def execute(self, package, max_depth=None, return_error=False):
+    def execute(self, package, max_depth=None):
         iterate, new_max_depth = get_new_level(package, max_depth)
         if iterate:
-            return [self.execute(
-                part, new_max_depth, return_error=return_error)
-                for part in package]
+            return [self.execute(part, new_max_depth) for part in package]
 
-        def get_result(package, pipe_tree, error=False):
+        def get_result(package, pipe_tree):
             results = {}
-            all_errors = {}
             for key, new_pipe_tree in pipe_tree.items():
                 if key is None:
                     results[new_pipe_tree] = package
-                    if error:
-                        all_errors[new_pipe_tree] = error
                     continue
 
                 element = self._pipe_elements[key]
                 try:
-                    if not error:
+                    if not isinstance(package, BaseException):
                         new_package = element.execute(package)
                     else:
                         new_package = package
-                    new_result, new_errors = get_result(new_package, new_pipe_tree, error=error)
+                    new_result = get_result(new_package, new_pipe_tree)
                 except BaseException as e:
-                    new_result, new_errors = get_result(None, new_pipe_tree, error=(element.name, type(e).__name__, e.args))
+                    e.source = element.name
+                    new_result = get_result(e, new_pipe_tree)
                 results.update(new_result)
-                all_errors.update(new_errors)
-            return results, all_errors
+            return results
 
-        results, errors = get_result(package, self._pipe_tree)
-        if return_error:
-            return results, errors
+        results = get_result(package, self._pipe_tree)
         return results
