@@ -17,11 +17,17 @@ class Pipeline(ABC):
     def execute(self, package, max_depth=None):
         iterate, new_max_depth = get_new_level(package, max_depth)
         if iterate:
-            return [self.execute(part, new_max_depth) for part in package]
+            return [
+                self.execute(part, new_max_depth)
+                for part in package]
 
         new_package = package
         for element in self._elements:
-            new_package = element.execute(new_package)
+            try:
+                new_package = element.execute(new_package)
+            except BaseException as e:
+                e.source = element.name
+                return e
         return new_package
 
     def __mul__(self, other):

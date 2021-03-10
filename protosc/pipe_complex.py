@@ -97,9 +97,20 @@ class PipeComplex():
             for key, new_pipe_tree in pipe_tree.items():
                 if key is None:
                     results[new_pipe_tree] = package
-                else:
-                    element = self._pipe_elements[key]
-                    new_package = element.execute(package)
-                    results.update(get_result(new_package, new_pipe_tree))
+                    continue
+
+                element = self._pipe_elements[key]
+                try:
+                    if not isinstance(package, BaseException):
+                        new_package = element.execute(package)
+                    else:
+                        new_package = package
+                    new_result = get_result(new_package, new_pipe_tree)
+                except BaseException as e:
+                    e.source = element.name
+                    new_result = get_result(e, new_pipe_tree)
+                results.update(new_result)
             return results
-        return get_result(package, self._pipe_tree)
+
+        results = get_result(package, self._pipe_tree)
+        return results
