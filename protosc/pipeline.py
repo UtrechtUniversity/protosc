@@ -14,14 +14,19 @@ class Pipeline(ABC):
             else:
                 raise ValueError(f"Cannot extend pipe with type: {type(arg)}")
 
-    def execute(self, package, max_depth=None):
+    def execute(self, package, max_depth=None, return_error=False):
         iterate, new_max_depth = get_new_level(package, max_depth)
         if iterate:
-            return [self.execute(part, new_max_depth) for part in package]
+            return [
+                self.execute(part, new_max_depth, return_error=return_error)
+                for part in package]
 
         new_package = package
         for element in self._elements:
-            new_package = element.execute(new_package)
+            try:
+                new_package = element.execute(new_package)
+            except BaseException as e:
+                return None, (element.name, type(e).__name__, e.args)
         return new_package
 
     def __mul__(self, other):
