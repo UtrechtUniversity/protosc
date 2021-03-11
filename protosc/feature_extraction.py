@@ -5,20 +5,22 @@ from scipy.sparse import csr_matrix
 
 
 class FourierFeatures(BasePipeElement):
-    def __init__(self, n_angular=8, n_spatial=7, circle_cut=True):
+    def __init__(self, n_angular=8, n_spatial=7, circle_cut=True, absolute=True):
         self.n_angular = n_angular
         self.n_spatial = n_spatial
         self.circle_cut = circle_cut
+        self.absolute = absolute
 
     def _execute(self, img):
         return fourier_features(
             img, n_angular=self.n_angular, n_spatial=self.n_spatial,
-            circle_cut=self.circle_cut)
+            circle_cut=self.circle_cut, absolute=self.absolute)
 
     @property
     def name(self):
         name = super(FourierFeatures, self).name
         name += f"_a{self.n_angular}s{self.n_spatial}c{self.circle_cut}"
+        name += f"ab{self.absolute}"
         return name
 
 
@@ -84,7 +86,9 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
     return results
 
 
-def fourier_features(img, *args, **kwargs):
+def fourier_features(img, *args, absolute=True, **kwargs):
     fft_map = np.fft.fftshift(np.fft.fft2(img-np.mean(img)))
+    if absolute:
+        fft_map = np.absolute(fft_map)
     trans = transform_matrix(fft_map.shape, *args, return_inverse=False, **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))
