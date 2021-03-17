@@ -26,6 +26,11 @@ class CutCircle(BasePipeElement):
 
 
 def greyscale(img):
+    if not isinstance(img, np.ndarray):
+        raise TypeError(f"Grey scaling needs np.ndarray as input type"
+                        " (not: {type(img)})")
+    if img.shape[2] == 1:
+        return img
     img_array = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img_array.reshape(*img_array.shape, 1)
 
