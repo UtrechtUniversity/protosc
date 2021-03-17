@@ -40,7 +40,7 @@ def viola_jones(img, add_perc=20):
         minSize=(30, 30)
     )
     if isinstance(faces, tuple):
-        value = 0.0
+        value = 1
         while isinstance(faces, tuple):
             try:
                 faces = faceCascade.detectMultiScale(
@@ -52,14 +52,15 @@ def viola_jones(img, add_perc=20):
             except:
                 next
             value += 0.1
+            print(value)
 
     # Crop face (with additional percentage) and safe as 200x200 pixels image
     margin_plus = 1 + add_perc / 100
     margin_min = 1 - add_perc / 100
 
     for (x, y, w, h) in faces:
-        roi_color = img[round(y*margin_min):round(y*margin_plus) + h,
-                        round(x*margin_min):round(x*margin_plus) + w]
+        roi_color = img[int(y*margin_min):int(y*margin_plus) + h,
+                        int(x*margin_min):int(x*margin_plus) + w]
         roi_color = cv2.resize(roi_color, (200, 200))
 
     if len(roi_color.shape) == 2:
