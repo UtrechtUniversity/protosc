@@ -14,7 +14,9 @@ def create_csv(stim_data_dir:Path, write=False):
     """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""
 
     # Read all images
-    files_path = list(stim_data_dir.glob('*.bmp'))
+    files_path = list(stim_data_dir.glob('*'))
+    files_path = [x for x in files_path if x.suffix.lower() == ".bmp"]
+
     files = list(x.stem for x in files_path)
 
     # Create codebook with the meaning of all abbreviations
