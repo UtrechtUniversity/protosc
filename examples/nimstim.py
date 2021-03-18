@@ -1,5 +1,6 @@
 from pathlib import Path
 import pandas as pd
+import argparse
 import numpy as np
 import re
 
@@ -10,111 +11,124 @@ from protosc.io import ReadImage
 grayscale = True
 
 
-def create_csv(stim_data_dir:Path, write=False):
-    """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""
+class NimStim:
 
-    # Read all images
-    files_path = list(stim_data_dir.glob('*.bmp'))
-    files = list(x.stem for x in files_path)
+    def __init__(self, stim_data_dir: Path):
+        self.stim_data_dir = stim_data_dir
 
-    # Create codebook with the meaning of all abbreviations
-    codebook = {0: {'female', 'male'},
-                1: {'calm', 'angry', 'happy', 'fear', 'sad', 'surprised', 'neutral', 'disgust'},
-                2: {'open', 'closed', 'exuberant'}}
-    output = [[], [], []]
+    def create_csv(self, write=False):
+        """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""
 
-    # Decode sex, emotion, and mouth position depicted on image
-    for file in files:
-        file_parts = file.split('_')
-        file_parts[0] = file_parts[0][-1]
+        # Read all images
+        files_path = list(self.stim_data_dir.glob('*.bmp'))
+        files = list(x.stem for x in files_path)
 
-        for i in range(0, 3):
-            try:
-                code = re.findall('(?<=\')' + file_parts[i].lower() + '\w*', str(codebook[i]))[0]
-                output[i].append(code)
-            except:
-                if file_parts[i].lower() == 'sp':
-                    output[i].append('surprised')
-                elif file_parts[i].lower() == 'x':
-                    output[i].append('exuberant')
-                else:
-                    next
+        # Create codebook with the meaning of all abbreviations
+        codebook = {0: {'female', 'male'},
+                    1: {'calm', 'angry', 'happy', 'fear', 'sad', 'surprised', 'neutral', 'disgust'},
+                    2: {'open', 'closed', 'exuberant'}}
+        output = [[], [], []]
 
-    # Create dataframe with all collected info about the image
-    df = {'file': files_path,
-          'sex': output[0],
-          'emotion': output[1],
-          'mouth': output[2]}
-    df = pd.DataFrame(df)
-    df.index.name = 'picture_id'
+        # Decode sex, emotion, and mouth position depicted on image
+        for file in files:
+            file_parts = file.split('_')
+            file_parts[0] = file_parts[0][-1]
 
-    # Write dataframe to csv file
-    if write:
-        df.to_csv('overview.csv', index=True)
+            for i in range(0, 3):
+                try:
+                    code = re.findall('(?<=\')' + file_parts[i].lower() + '\w*', str(codebook[i]))[0]
+                    output[i].append(code)
+                except:
+                    if file_parts[i].lower() == 'sp':
+                        output[i].append('surprised')
+                    elif file_parts[i].lower() == 'x':
+                        output[i].append('exuberant')
+                    else:
+                        pass
 
-    return df
+        # Create dataframe with all collected info about the image
+        df = {'file': files_path,
+              'sex': output[0],
+              'emotion': output[1],
+              'mouth': output[2]}
+        df = pd.DataFrame(df)
+        df.index.name = 'picture_id'
 
+        # Write dataframe to csv file
+        if write:
+            df.to_csv('overview.csv', index=True)
 
-def select_files(stim_data_dir:Path, select:str):
-    """ Put specified files through the pipeline"""
+        return df
 
-    overview = create_csv(stim_data_dir)
-    variations = overview[select].unique()
+    def select_files(self, select:str, write):
+        """ Put specified files through the pipeline"""
 
-    overview['class'] = ''
-    classification = 0
+        overview = self.create_csv(write=write)
+        variations = overview[select].unique()
 
-    for variation in variations:
-        index = overview[overview[select] == variation].index
-        overview.loc[index, 'class'] = classification
-        classification += 1
+        overview['class'] = ''
+        for classification, variation in enumerate(variations):
+            index = overview[overview[select] == variation].index
+            overview.loc[index, 'class'] = classification
 
-    x = np.array(overview['class'])
-    files = np.array(overview['file'])
+        x = np.array(overview['class'])
+        files = np.array(overview['file'])
 
-    return files, x
+        return files, x
 
+    def feature_matrix(self, output):
+        """ Create Fourier Matrix: input = pipeline output, row = image, column = Feature """
 
-def feature_matrix(output):
-    """ Create Fourier Matrix: input = pipeline output, row = image, column = Feature """
+        feature_matrix = pd.DataFrame()
 
-    feature_matrix = pd.DataFrame()
-
-    for image in range(len(output)):
-        # If you only run 1 pipeline
-        if isinstance(output[image], np.ndarray):
-            data = pd.DataFrame(output[image]).T
-            data['pipeline'] = 'pipe1'
-            data['picture_id'] = image
-            feature_matrix = feature_matrix.append(data)
-
-        # If you run a pipe_complex
-        else:
-            for pipe in output[image].keys():
-                data = pd.DataFrame(output[image][pipe]).T
-                data['pipeline'] = pipe
+        for image in range(len(output)):
+            # If you only run 1 pipeline
+            if isinstance(output[image], np.ndarray):
+                data = pd.DataFrame(output[image]).T
+                data['pipeline'] = 'pipe1'
                 data['picture_id'] = image
                 feature_matrix = feature_matrix.append(data)
 
-    feature_matrix = feature_matrix.sort_values(['pipeline', 'picture_id']).set_index(['pipeline', 'picture_id'])
+            # If you run a pipe_complex
+            else:
+                for pipe in output[image].keys():
+                    data = pd.DataFrame(output[image][pipe]).T
+                    data['pipeline'] = pipe
+                    data['picture_id'] = image
+                    feature_matrix = feature_matrix.append(data)
 
-    return feature_matrix
+        feature_matrix = feature_matrix.sort_values(['pipeline', 'picture_id']).set_index(['pipeline', 'picture_id'])
+
+        return feature_matrix
+
+    def execute(self, pipe_complex):
+        """ Execute functions with corresponding pipeline"""
+
+        # Put selected images through pipeline (e.g., classified on mouth (O, C, X))
+        files, x = self.select_files(select='mouth', write=True)
+        output = pipe_complex.execute(files)
+
+        # Create feature matrix from pipeline output
+        feature_matrix = self.feature_matrix(output)
+
+        return feature_matrix, x, files
 
 
-# Create overview of all images with their corresponding sex, emotion and mouth positioning
-stim_data_dir = Path("..", "data", "Nimstim faces")
-overview = create_csv(stim_data_dir, write=False)
-print(overview)
+def main():
+    parser = argparse.ArgumentParser(description='Validatie anonymization process.')
+    parser.add_argument("--stim_data_dir", "-p", help="Enter path to Nimstim faces",
+                        default=".")
 
-# Define pipeline
-pipe1 = ReadImage()*ViolaJones(20)*CutCircle()*FourierFeatures()
-pipe2 = ReadImage()*GreyScale()*ViolaJones(20)*CutCircle()*FourierFeatures()
-pipe_complex = pipe1 + pipe2
-print(pipe_complex)
+    args = parser.parse_args()
 
-# Put selected images through pipeline (e.g., classified on mouth (O, C, X))
-files, x = select_files(stim_data_dir, 'mouth')
-output = pipe_complex.execute(files)
+    # Define pipeline
+    pipe1 = ReadImage() * ViolaJones(20) * CutCircle() * FourierFeatures()
+    pipe2 = ReadImage() * GreyScale() * ViolaJones(20) * CutCircle() * FourierFeatures()
+    pipe_complex = pipe1 + pipe2
 
-# Create feature matrix from pipeline output
-feature_matrix(output)
+    nimstim = NimStim(Path(args.stim_data_dir))
+    nimstim.execute(pipe_complex)
+
+
+if __name__ == "__main__":
+    main()
