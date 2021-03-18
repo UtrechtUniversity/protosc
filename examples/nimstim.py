@@ -13,22 +13,16 @@ grayscale = True
 
 class NimStim:
 
-<<<<<<< HEAD
     def __init__(self, stim_data_dir: Path):
         self.stim_data_dir = stim_data_dir
-=======
-    # Read all images
-    files_path = list(self.stim_data_dir.glob('*'))
-    files_path = [x for x in files_path if x.suffix.lower() == ".bmp"]
-
-    files = list(x.stem for x in files_path)
->>>>>>> 2f81387adf972703601561e2c790b0bcec0742f1
 
     def create_csv(self, write=False):
         """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""
 
         # Read all images
-        files_path = list(self.stim_data_dir.glob('*.bmp'))
+        files_path = list(self.stim_data_dir.glob('*'))
+        files_path = [x for x in files_path if x.suffix.lower() == ".bmp"]
+
         files = list(x.stem for x in files_path)
 
         # Create codebook with the meaning of all abbreviations
