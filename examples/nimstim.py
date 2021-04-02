@@ -4,9 +4,6 @@ import numpy as np
 import re
 
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
-from protosc.feature_extraction import FourierFeatures
-from protosc.io import ReadImage
-
 
 def create_csv(stim_data_dir, write=False):
     """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""

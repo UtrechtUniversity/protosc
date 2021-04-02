@@ -12,7 +12,7 @@ setup(
     python_requires='~=3.6',
     install_requires=[
         'numpy',
-        'opencv-python==4.5.1.48',
+        'opencv-python',
         'pandas',
     ]
 )

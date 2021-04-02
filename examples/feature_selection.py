@@ -1,11 +1,6 @@
 from examples.nimstim import NimStim
 from pathlib import Path
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
-from protosc.pipe_complex import PipeComplex
-from protosc.feature_extraction import FourierFeatures
-from protosc.io import ReadImage
-grayscale = True
-from sklearn.model_selection import train_test_split
 
 # Define pipeline
 pipe1 = ReadImage() * ViolaJones(20) * CutCircle() * FourierFeatures()
