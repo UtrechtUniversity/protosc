@@ -4,6 +4,9 @@ import numpy as np
 import re
 
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
+from protosc.feature_extraction import FourierFeatures
+from protosc.io import ReadImage
+
 
 def create_csv(stim_data_dir, write=False):
     """ Create dataframe with all image IDs and sex, emotion, and mouth position depicted on image"""
@@ -72,19 +75,22 @@ def select_files(stim_data_dir, select:str, write=False):
 def feature_matrix(output, pipe_complex):
     """ Create Fourier Matrix: input = pipeline output, row = image, column = Feature """
 
-    for image in range(len(output)):
-        output_array = np.array([])
-        # If you only run 1 pipeline
-        if isinstance(output[image], np.ndarray):
+    # If you only run 1 pipeline
+    if not isinstance(output[0], dict):
+        for image in range(len(output)):
             data = np.array([image, str(pipe_complex), output[image]])
 
             try:
-                final = np.append([final], [data], axis=0)
+                final = np.append(final, data, axis=0)
             except NameError:
                 final = data
 
-        # If you run a pipe_complex
-        else:
+        final = np.array_split(final, int(len(final) / 3))
+
+    # If you run a pipe_complex
+    else:
+        output_array = np.array([])
+        for image in range(len(output)):
             for pipe in output[image].keys():
                 data = np.array([image, pipe, output[image][pipe]])
 
@@ -97,8 +103,9 @@ def feature_matrix(output, pipe_complex):
             except NameError:
                 final = output_array
 
+    # Give preview of output array in form of dataframe
     preview = pd.DataFrame(final)
-    preview.rename(columns={0 : 'image_id', 1 : 'pipeline', 2: 'features'}, inplace=True)
+    preview.rename(columns={0: 'image_id', 1: 'pipeline', 2: 'features'}, inplace=True)
     print(preview)
 
     return final

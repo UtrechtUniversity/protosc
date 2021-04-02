@@ -1,6 +1,10 @@
 from examples.nimstim import NimStim
 from pathlib import Path
+
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
+from protosc.feature_extraction import FourierFeatures
+from protosc.io import ReadImage
+
 
 # Define pipeline
 pipe1 = ReadImage() * ViolaJones(20) * CutCircle() * FourierFeatures()
