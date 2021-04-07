@@ -30,7 +30,8 @@ def create_csv(stim_data_dir, write=False):
 
         for i in range(0, 3):
             try:
-                code = re.findall(r'(?<=\')' + file_parts[i].lower() + r'\w*', str(codebook[i]))[0]
+                code = re.findall(
+                    r'(?<=\')' + file_parts[i].lower() + r'\w*', str(codebook[i]))[0]
                 output[i].append(code)
             except:
                 if file_parts[i].lower() == 'sp':
@@ -55,7 +56,7 @@ def create_csv(stim_data_dir, write=False):
     return df
 
 
-def select_files(stim_data_dir, select:str, write=False):
+def select_files(stim_data_dir, select: str, write=False):
     """ Put specified files through the pipeline"""
 
     overview = create_csv(stim_data_dir, write=write)
@@ -84,11 +85,9 @@ def feature_matrix(output, pipe_complex):
     # If you run multiple pipelines
     else:
         for pipe in output[0].keys():
-            output_array = []
-            for image in range(len(output)): 
-                output_array.append(output[image][pipe])
+            output_array = [output[image][pipe]
+                            for image in range(len(output))]
             final[pipe] = output_array
-            
 
     # Give preview of feature output in form of dataframe
     preview = pd.DataFrame(final)
@@ -119,7 +118,8 @@ def main():
 
     # Define pipeline
     pipe1 = ReadImage() * ViolaJones(20) * CutCircle() * FourierFeatures()
-    pipe2 = ReadImage() * GreyScale() * ViolaJones(20) * CutCircle() * FourierFeatures()
+    pipe2 = ReadImage() * GreyScale() * ViolaJones(20) * \
+        CutCircle() * FourierFeatures()
     pipe_complex = pipe1 + pipe2
 
     # Define path to images
