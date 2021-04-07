@@ -73,39 +73,26 @@ def select_files(stim_data_dir, select:str, write=False):
 
 
 def feature_matrix(output, pipe_complex):
-    """ Create Fourier Matrix: input = pipeline output, row = image, column = Feature """
+    """ Create Feature Matrix: input = pipeline output, output = list (per pipeline) with feature_arrays per image """
 
-    # If you only run 1 pipeline
+    final = {}
+
+    # If you run only one pipeline
     if not isinstance(output[0], dict):
-        for image in range(len(output)):
-            data = np.array([image, str(pipe_complex), output[image]])
+        final[pipe_complex] = output
 
-            try:
-                final = np.append(final, data, axis=0)
-            except NameError:
-                final = data
-
-        final = np.array_split(final, int(len(final) / 3))
-
-    # If you run a pipe_complex
+    # If you run multiple pipelines
     else:
-        output_array = np.array([])
-        for image in range(len(output)):
-            for pipe in output[image].keys():
-                data = np.array([image, pipe, output[image][pipe]])
+        for pipe in output[0].keys():
+            output_array = []
+            for image in range(len(output)): 
+                output_array.append(output[image][pipe])
+            final[pipe] = output_array
+            
 
-                try:
-                    output_array = np.append([output_array], [data], axis=0)
-                except ValueError:
-                    output_array = data
-            try:
-                final = np.append(final, output_array, axis=0)
-            except NameError:
-                final = output_array
-
-    # Give preview of output array in form of dataframe
+    # Give preview of feature output in form of dataframe
     preview = pd.DataFrame(final)
-    preview.rename(columns={0: 'image_id', 1: 'pipeline', 2: 'features'}, inplace=True)
+    preview.index.name = 'image_id'
     print(preview)
 
     return final
