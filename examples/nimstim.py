@@ -67,10 +67,10 @@ def select_files(stim_data_dir, select: str, write=False):
         index = overview[overview[select] == variation].index
         overview.loc[index, 'class'] = classification
 
-    x = np.array(overview['class'])
+    y = np.array(overview['class'])
     files = np.array(overview['file'])
 
-    return files, x
+    return files, y
 
 
 def feature_matrix(output, pipe_complex):
@@ -102,7 +102,7 @@ def execute(pipe_complex, stim_data_dir: Path, select: str, write=False):
 
     # Put selected images through pipeline (e.g., classified on mouth (O, C, X))
     print('Filtering images...')
-    files, x = select_files(stim_data_dir, select=select, write=write)
+    files, y = select_files(stim_data_dir, select=select, write=write)
 
     print('Putting images through pipeline...')
     output = pipe_complex.execute(files)
@@ -111,7 +111,7 @@ def execute(pipe_complex, stim_data_dir: Path, select: str, write=False):
     print('Creating feature matrix...')
     feature_array = feature_matrix(output, pipe_complex)
 
-    return feature_array, x, files
+    return feature_array, y, files
 
 
 def main():

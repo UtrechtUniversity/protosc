@@ -13,19 +13,19 @@ from protosc.feature_extraction import FourierFeatures
 from protosc.io import ReadImage
 
 
-def create_data(feature_list, x_all, files_all):
+def create_data(feature_list, y_all, files_all):
     """ Create dataframe with id, file path, category (O/1) and features per image """
 
     # Filter out exuberant (X): only compare open (O) vs. closed (C) mouths
-    files = files_all[x_all != 2]
-    x = x_all[x_all != 2]
+    files = files_all[y_all != 2]
+    y = y_all[y_all != 2]
     feature_pipe = [feature_list[image]
-                    for image, select in enumerate(x_all != 2) if select]
-    image_id = [image for image, select in enumerate(x_all != 2) if select]
+                    for image, select in enumerate(y_all != 2) if select]
+    image_id = [image for image, select in enumerate(y_all != 2) if select]
 
     # Create dataframe that will be used for further analysis
     data = pd.DataFrame({'image_id': image_id, 'file_path': files,
-                        'category': x, 'features': feature_pipe})
+                        'category': y, 'features': feature_pipe})
 
     return data
 
@@ -33,20 +33,20 @@ def create_data(feature_list, x_all, files_all):
 def calc_chisquare(y_train, X_train):
     """ Calculate chi-square using kruskall-wallis per feature """
 
-    y_chisquare = []
-    features = range(len(y_train.to_list()[0]))
+    X_chisquare = []
+    features = range(len(X_train.to_list()[0]))
 
     for feature in features:
-        y = [float(y_train[image][feature].real) for image in y_train.index]
-        y_chisquare.append(stats.kruskal(X_train, y).statistic)
+        X = [float(X_train[image][feature].real) for image in X_train.index]
+        X_chisquare.append(stats.kruskal(X, y_train).statistic)
 
-    return y_chisquare
+    return X_chisquare
 
 
-def sort_chisquare(y_chisquare):
+def sort_chisquare(X_chisquare):
     """ Sort the chi-squares from high to low while keeping track of the original indices """
 
-    chisquare_sorted = pd.DataFrame({'chisquare': y_chisquare})
+    chisquare_sorted = pd.DataFrame({'chisquare': X_chisquare})
     chisquare_sorted['feature_id'] = chisquare_sorted.index
 
     chisquare_sorted = chisquare_sorted.sort_values(
@@ -71,8 +71,11 @@ def cumsum_chisquare(chisquare_sorted):
 
 def select(chisquare_sorted):
     """ Select the top n features needed to reach .25 """
-
-    cutoff = chisquare_sorted[chisquare_sorted['scaled'] <= 0.25]
+    scores = chisquare_sorted['scaled']
+    if any(round(scores, 2) == 0.25):
+        cutoff = chisquare_sorted[round(scores, 2) <= 0.25]
+    else:
+        cutoff = chisquare_sorted[:sum(round(scores, 2) <= 0.25)+1]
 
     return cutoff
 
@@ -89,25 +92,25 @@ def main():
     stim_data_dir = Path("..", "data", "Nimstim faces")
 
     # Create feature matrix
-    feature_array, x_all, files_all = execute(
+    feature_array, y_all, files_all = execute(
         pipe_complex, stim_data_dir, select='mouth', write=False)
 
     # Get overview
     print(f'Number of images: {len(files_all)}')
-    print(f'Number of \'open mouth\' images: {sum(x_all == 1)}')
-    print(f'Number of \'closed mouth\' images: {sum(x_all == 0)}')
-    print(f'Number of \'other mouth\' images: {sum(x_all == 2)}')
+    print(f'Number of \'open mouth\' images: {sum(y_all == 1)}')
+    print(f'Number of \'closed mouth\' images: {sum(y_all == 0)}')
+    print(f'Number of \'other mouth\' images: {sum(y_all == 2)}')
 
     # Select one pipeline
     pipelines = list(feature_array.keys())
     feature_list = feature_array[pipelines[1]]
 
     # Create dataframe with open vs. closed mouths
-    data = create_data(feature_list, x_all, files_all)
+    data = create_data(feature_list, y_all, files_all)
 
     # Split data (features+labels) into train and test data
     X_train, X_test, y_train, y_test = train_test_split(
-        data['category'], data['features'], test_size=0.125)
+        data['features'], data['category'], test_size=0.125)
 
     # Split data into 8 partitions: set 1 partition as test data, other 7 as train data
     y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7 = np.array_split(
