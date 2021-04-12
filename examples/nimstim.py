@@ -1,7 +1,7 @@
 from pathlib import Path
-import pandas as pd
 import numpy as np
 import re
+import csv
 
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
 from protosc.feature_extraction import FourierFeatures
@@ -27,7 +27,6 @@ def create_csv(stim_data_dir, write=False):
     for file in files:
         file_parts = file.split('_')
         file_parts[0] = file_parts[0][-1]
-
         for i in range(0, 3):
             try:
                 code = re.findall(
@@ -46,13 +45,27 @@ def create_csv(stim_data_dir, write=False):
           'sex': output[0],
           'emotion': output[1],
           'mouth': output[2]}
-    df = pd.DataFrame(df)
-    df.index.name = 'picture_id'
 
     # Write dataframe to csv file
     if write:
-        df.to_csv('overview.csv', index=True)
+        df = []
+        for i in range(len(files_path)):
+            data = {'file': files_path[i],
+                    'sex': output[0][i],
+                    'emotion': output[1][i],
+                    'mouth': output[2][i]}
+            df.append(data)
 
+        csv_columns = ['file', 'sex', 'emotion', 'mouth']
+        csv_file = "overview.csv"
+
+        try:
+            with open(csv_file, 'w') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+                writer.writeheader()
+                writer.writerows(df)
+        except IOError:
+            print('error')
     return df
 
 
@@ -76,23 +89,18 @@ def select_files(stim_data_dir, select: str, write=False):
 def feature_matrix(output, pipe_complex):
     """ Create Feature Matrix: input = pipeline output, output = list (per pipeline) with feature_arrays per image """
 
-    final = {}
+    final = []
 
     # If you run only one pipeline
     if not isinstance(output[0], dict):
-        final[pipe_complex] = output
+        final.append(output)
 
     # If you run multiple pipelines
     else:
         for pipe in output[0].keys():
-            output_array = [output[image][pipe]
-                            for image in range(len(output))]
-            final[pipe] = output_array
-
-    # Give preview of feature output in form of dataframe
-    preview = pd.DataFrame(final)
-    preview.index.name = 'image_id'
-    print(preview)
+            data = np.array([output[image][pipe]
+                             for image in range(len(output))])
+            final.append(data)
 
     return final
 
