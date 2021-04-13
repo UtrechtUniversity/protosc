@@ -120,20 +120,18 @@ def main():
 
     # Train an SVM on the train set while using all features, crossvalidate on holdout
     svclassifier = svm.SVC(kernel='linear')
-    svclassifier.fit(list(X_train), list(y_train))
+    svclassifier.fit(list(X_train1), list(y_train1))
 
     y_pred = svclassifier.predict(list(X_test))
 
-    print(confusion_matrix(list(y_test), list(y_pred)))
     print(classification_report(list(y_test), list(y_pred)))
 
     # Train an SVM on the train set while using the selected features, crossvalidate on holdout
     svclassifier2 = svm.SVC(kernel='linear')
-    svclassifier2.fit(list(X_train[:, selected_features]), list(y_train))
+    svclassifier2.fit(list(X_train1[:, selected_features]), list(y_train1))
 
     y_pred2 = svclassifier2.predict(list(X_test[:, selected_features]))
 
-    print(confusion_matrix(list(y_test), list(y_pred2)))
     print(classification_report(list(y_test), list(y_pred2)))
 
     # Redefine Train and Hold out data and repeat

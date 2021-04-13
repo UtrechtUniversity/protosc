@@ -14,6 +14,7 @@ def create_csv(stim_data_dir, write=False):
     # Read all images
     files_path = list(stim_data_dir.glob('*'))
     files_path = [x for x in files_path if x.suffix.lower() == ".bmp"]
+    image_id = [*range(len(files_path))]
 
     files = list(x.stem for x in files_path)
 
@@ -48,24 +49,14 @@ def create_csv(stim_data_dir, write=False):
 
     # Write dataframe to csv file
     if write:
-        df = []
-        for i in range(len(files_path)):
-            data = {'file': files_path[i],
-                    'sex': output[0][i],
-                    'emotion': output[1][i],
-                    'mouth': output[2][i]}
-            df.append(data)
+        keys = df.keys()
+        with open('out.csv', 'w') as csv:
+            header = ['image_id'] + [k for k in keys]
+            csv.write(','.join(header) + '\n')
+            for i in range(len(image_id)):
+                data = [str(i)] + [str(df[k][i]) for k in keys]
+                csv.write(','.join(data) + '\n')
 
-        csv_columns = ['file', 'sex', 'emotion', 'mouth']
-        csv_file = "overview.csv"
-
-        try:
-            with open(csv_file, 'w') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-                writer.writeheader()
-                writer.writerows(df)
-        except IOError:
-            print('error')
     return df
 
 
@@ -73,15 +64,15 @@ def select_files(stim_data_dir, select: str, write=False):
     """ Put specified files through the pipeline"""
 
     overview = create_csv(stim_data_dir, write=write)
-    variations = overview[select].unique()
 
-    overview['class'] = ''
-    for classification, variation in enumerate(variations):
-        index = overview[overview[select] == variation].index
-        overview.loc[index, 'class'] = classification
-
-    y = np.array(overview['class'])
     files = np.array(overview['file'])
+    variations = set(overview[select])
+
+    y = np.array(overview[select])
+    for classification, variation in enumerate(variations):
+        y[y == variation] = classification
+
+    y = np.array(y, dtype=int)
 
     return files, y
 
