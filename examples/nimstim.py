@@ -14,7 +14,6 @@ def create_csv(stim_data_dir, write=False):
     # Read all images
     files_path = list(stim_data_dir.glob('*'))
     files_path = [x for x in files_path if x.suffix.lower() == ".bmp"]
-    image_id = [*range(len(files_path))]
 
     files = list(x.stem for x in files_path)
 
