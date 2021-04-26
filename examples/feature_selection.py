@@ -70,6 +70,39 @@ def select_features(X_chisquare):
     return selected_features
 
 
+def model_all(y_train, X_train, y_val, X_val, svclassifier=None):
+    # Train an SVM on the train set while using all features, crossvalidate on holdout
+    if not svclassifier:
+        svclassifier = svm.SVC(kernel='linear')
+
+    svclassifier.fit(list(X_train), list(y_train))
+
+    y_pred = svclassifier.predict(list(X_val))
+    outcome = classification_report(list(y_val), list(y_pred))
+
+    return outcome
+
+
+def model_selected(y_train, X_train, y_test, X_test,  svclassifier=None):
+    # Per feature in the train data, calculate the chi-square using kruskall-wallis
+    # (estimate difference between classes per feature basically)
+    chi_statistics = calc_chisquare(y_train, X_train)
+
+    # Select the top n features needed to make .25 from vector i
+    selected_features = select_features(chi_statistics)
+
+    # Train an SVM on the train set while using the selected features, crossvalidate on holdout
+    if not svclassifier:
+        svclassifier = svm.SVC(kernel='linear')
+
+    svclassifier.fit(list(X_train[:, selected_features]), list(y_train))
+
+    y_pred = svclassifier.predict(list(X_test[:, selected_features]))
+    print(classification_report(list(y_test), list(y_pred)))
+
+    return svclassifier
+
+
 def main():
 
     # Define pipeline
@@ -98,41 +131,29 @@ def main():
     X, y, image_id = create_data(feature_list, y_all, files_all)
 
     # Split data (features+labels) into train and test data + keep track of image_id
-    X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
+    X_train, X_test, y_train, y_test, id_train, id_test = train_test_split(
         X, y, image_id, test_size=0.125)
 
     # Split data into 8 partitions: set 1 partition as test data, other 7 as train data
-    y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7 = np.array_split(
-        y_train, 7)
-    X_train1, X_train2, X_train3, X_train4, X_train5, X_train6, X_train7 = np.array_split(
-        X_train, 7)
-    idx_train1, idx_train2, idx_train3, idx_train4, idx_train5, idx_train6, idx_train7 = np.array_split(
-        idx_train, 7)
+    y_trainings = np.array_split(y_train, 8)
+    X_trainings = np.array_split(X_train, 8)
+    id_trainings = np.array_split(id_train, 8)
 
     # Balance classes
 
-    # Per feature in the train data, calculate the chi-square using kruskall-wallis
-    # (estimate difference between classes per feature basically)
-    chi_statistics = calc_chisquare(y_train1, X_train1)
-
-    # Select the top n features needed to make .25 from vector i
-    selected_features = select_features(chi_statistics)
-
     # Train an SVM on the train set while using all features, crossvalidate on holdout
-    svclassifier = svm.SVC(kernel='linear')
-    svclassifier.fit(list(X_train1), list(y_train1))
+    svclassifier_all = None
+    for trainingset in range(7):
+        svclassifier_all = model_all(y_trainings[trainingset],
+                                     X_trainings[trainingset],
+                                     y_test, X_test, svclassifier_all)
 
-    y_pred = svclassifier.predict(list(X_test))
-
-    print(classification_report(list(y_test), list(y_pred)))
-
-    # Train an SVM on the train set while using the selected features, crossvalidate on holdout
-    svclassifier2 = svm.SVC(kernel='linear')
-    svclassifier2.fit(list(X_train1[:, selected_features]), list(y_train1))
-
-    y_pred2 = svclassifier2.predict(list(X_test[:, selected_features]))
-
-    print(classification_report(list(y_test), list(y_pred2)))
+    # Train an SVM on the train set while using the selected features (i.e., making up 25% of chisquare scores), crossvalidate on holdout
+    svclassifier_selected = None
+    for trainingset in range(7):
+        svclassifier_selected = model_selected(y_trainings[trainingset],
+                                               X_trainings[trainingset],
+                                               y_test, X_test, svclassifier_selected)
 
     # Redefine Train and Hold out data and repeat
 
