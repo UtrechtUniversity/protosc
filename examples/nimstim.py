@@ -40,13 +40,13 @@ def create_csv(stim_data_dir, write=False):
                 else:
                     pass
 
-    # Create dataframe with all collected info about the image
+    # Create dictionary with all collected info about the image
     df = {'file': files_path,
           'sex': output[0],
           'emotion': output[1],
           'mouth': output[2]}
 
-    # Write dataframe to csv file
+    # Write dictionary to csv file
     if write:
         keys = df.keys()
         with open('out.csv', 'w') as csv:
