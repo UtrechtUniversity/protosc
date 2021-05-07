@@ -71,7 +71,7 @@ def select_files(stim_data_dir, select: str, write=False):
     overview = create_csv(stim_data_dir, write=write)
 
     files = np.array(overview['file'])
-    variations = set(overview[select])
+    variations = sorted(list(set(overview[select])))
 
     y = np.array(overview[select])
     for classification, variation in enumerate(variations):
