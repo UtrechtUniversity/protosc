@@ -13,38 +13,6 @@ from protosc.feature_extraction import FourierFeatures
 from protosc.io import ReadImage
 
 
-def create_data():
-    """ Create mock data set: 400 features with two classes and 250 examples per class.
-        image_id = array, image identifier (0-499)
-        y = array, image classes (0/1)
-        X = array, 400 features per image (normal distribution, mean 0)
-    """
-
-    # Image_id: image id - identifier for each image (0-499)
-    image_id = np.array([*range(0, 500)])
-
-    # y: image class - 250 images with class 0, 250 images with class 1
-    y = np.array([0]*250 + [1]*250)
-
-    # Create 400 features, each with 500 values (#images), based on normal distribution with mean 0
-    features = [np.random.normal(loc=0.0, scale=1.0, size=500)
-                for i in range(400)]
-    features = np.array(features)
-
-    # Randomly select 25 features
-    selected = np.random.randint(0, 399, 25)
-
-    # Increase selected feature values with standard deviation ONLY for class 1
-    features[selected][:, 250:] = features[selected][:, 250:] + \
-        np.std(features[selected][:, 250:])
-
-    # X: features - array with 400 feature values per image
-    X = [features[:, i] for i in image_id]
-    X = np.array(X)
-
-    return X, y, image_id
-
-
 def calc_chisquare(y_training, X_training):
     """ Per feature, calculate chi-square using kruskall-wallis between two classes """
 
