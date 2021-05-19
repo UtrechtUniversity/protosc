@@ -17,14 +17,13 @@ def select_fold(y_folds, X_folds, i_val, balance=True):
 
     train_one = np.where(y_train == 1)[0]
     train_zero = np.where(y_train == 0)[0]
-    if len(train_one) >= len(train_zero):
+    if len(train_one) > len(train_zero):
         train_one = np.random.choice(train_one, size=len(train_zero),
                                      replace=False)
-    else:
+    elif len(train_one) < len(train_zero):
         train_zero = np.random.choice(train_zero, size=len(train_one),
                                       replace=False)
-    selected_data = np.append(train_one, train_zero)
-    np.random.shuffle(selected_data)
+    selected_data = np.sort(np.append(train_one, train_zero))
     return y_val, X_val, y_train[selected_data], X_train[selected_data]
 
 
