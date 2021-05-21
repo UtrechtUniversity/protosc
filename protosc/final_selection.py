@@ -1,9 +1,5 @@
-from protosc import filter_model
-from protosc import create_simulation_data
-from sklearn.model_selection import train_test_split
 from collections import defaultdict
 import numpy as np
-from scipy.stats import sem
 
 
 def final_selection(feature_accuracy, null_accuracy):
