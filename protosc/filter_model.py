@@ -5,7 +5,7 @@ from sklearn.metrics import f1_score
 from scipy import stats
 
 
-def select_fold(y_folds, X_folds, i_val, balance=True):
+def select_fold(y_folds, X_folds, i_val, rng, balance=True):
     n_fold = len(y_folds)
     y_val = y_folds[i_val]
     X_val = X_folds[i_val]
@@ -18,11 +18,11 @@ def select_fold(y_folds, X_folds, i_val, balance=True):
     train_one = np.where(y_train == 1)[0]
     train_zero = np.where(y_train == 0)[0]
     if len(train_one) > len(train_zero):
-        train_one = np.random.choice(train_one, size=len(train_zero),
-                                     replace=False)
+        train_one = rng.choice(train_one, size=len(train_zero),
+                               replace=False)
     elif len(train_one) < len(train_zero):
-        train_zero = np.random.choice(train_zero, size=len(train_one),
-                                      replace=False)
+        train_zero = rng.choice(train_zero, size=len(train_one),
+                                replace=False)
     selected_data = np.sort(np.append(train_one, train_zero))
     return y_val, X_val, y_train[selected_data], X_train[selected_data]
 
@@ -37,10 +37,10 @@ def model_selected(y_training, X_training, y_val, X_val, selected_features,
 
     y_predict = svclassifier.predict(X_val[:, selected_features])
 
-    outcome = {"Accuracy": round(accuracy_score(y_val, y_predict), 2),
-               "Precision": round(precision_score(y_val, y_predict), 2),
-               "Recall": round(recall_score(y_val, y_predict), 2),
-               "F1_score": round(f1_score(y_val, y_predict), 2)}
+    outcome = {"Accuracy": accuracy_score(y_val, y_predict),
+               "Precision": precision_score(y_val, y_predict),
+               "Recall": recall_score(y_val, y_predict),
+               "F1_score": f1_score(y_val, y_predict)}
 
 #     print(classification_report(list(y_val), list(y_predict)))
 
@@ -56,10 +56,10 @@ def model_all(y_training, X_training, y_val, X_val, kernel):
 
     y_predict = svclassifier.predict(X_val)
 
-    outcome = {"Accuracy": round(accuracy_score(y_val, y_predict), 2),
-               "Precision": round(precision_score(y_val, y_predict), 2),
-               "Recall": round(recall_score(y_val, y_predict), 2),
-               "F1_score": round(f1_score(y_val, y_predict), 2)}
+    outcome = {"Accuracy": accuracy_score(y_val, y_predict),
+               "Precision": precision_score(y_val, y_predict),
+               "Recall": recall_score(y_val, y_predict),
+               "F1_score": f1_score(y_val, y_predict)}
 
 #     print(classification_report(list(y_val), list(y_predict)))
 
@@ -108,19 +108,24 @@ def select_features(y_training, X_training, chisq_threshold=0.25):
     # Select features needed to reach .25 (i.e., the number of features (n)
     # used for the filter selection)
 #     selected_features = feature_id[stand <= 0.25]
-    selected_features = feature_id[cumsum/cumsum[-1] <= chisq_threshold]
+    selected_features = feature_id[:np.argmax(cumsum/cumsum[-1] >= 0.25)+1]
 #     print(selected_features, feature_id[cumsum/cumsum[-1] <= 0.25])
 
-    print(
-        f'{selected_features.shape[0]} feature(s) used for the filter '
-        f'selection')
+#     print(
+#         f'{selected_features.shape[0]} feature(s) used for the filter '
+#         f'selection')
 
     return selected_features
 
 
-def filter_model(X, y, feature_id=None, n_fold=8):
+def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
+                 null_distribution=False):
     if feature_id is None:
         feature_id = np.arange(len(y))
+
+#     np.random.seed(seed)
+    fold_rng = np.random.default_rng(fold_seed)
+#     np.random.seed(seed)
 
     # Split data into 8 partitions: later use 1 partition as validating data,
     # other 7 as train data
@@ -133,22 +138,18 @@ def filter_model(X, y, feature_id=None, n_fold=8):
     # Train an SVM on the train set (i.e, 7 of the 8 X/y_trainings)
     # while using all features,
     # crossvalidate on holdout (i.e., 1 of the 8 X/y_trainings)
-    output = []
-    for i_val in range(8):
-        # Set 1 partition as validating data, other 7 as train data
-        y_val, X_val, y_train, X_train = select_fold(y_folds, X_folds, i_val)
-#         y_val = y_folds[i_val]
-#         X_val = X_folds[i_val]
-#         y_train = np.concatenate(y_folds[0:i_val] + y_folds[i_val+1:8])
-#         X_train = np.concatenate(X_folds[0:i_val] + X_folds[i_val+1:8])
-
-        # Build the SVM model with specified kernel
-        # ('linear', 'rbf', 'poly', 'sigmoid')
-        model_output = model_all(
-            y_train, X_train, y_val, X_val, kernel='linear')
-        output.append(model_output)
-
-    final = dict((k, [d[k] for d in output]) for k in output[0])
+#     output = []
+#     for i_val in range(8):
+#         # Set 1 partition as validating data, other 7 as train data
+#         y_val, X_val, y_train, X_train = select_fold(y_folds, X_folds, i_val)
+# 
+#         # Build the SVM model with specified kernel
+#         # ('linear', 'rbf', 'poly', 'sigmoid')
+#         model_output = model_all(
+#             y_train, X_train, y_val, X_val, kernel='linear')
+#         output.append(model_output)
+# 
+#     final = dict((k, [d[k] for d in output]) for k in output[0])
 
     # Train an SVM on the train set while using the selected features
     # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
@@ -156,8 +157,13 @@ def filter_model(X, y, feature_id=None, n_fold=8):
 
     for i_val in range(n_fold):
         # Set 1 partition as validating data, other 7 as train data
-        y_val, X_val, y_train, X_train = select_fold(y_folds, X_folds, i_val)
+        y_val, X_val, y_train, X_train = select_fold(y_folds, X_folds, i_val,
+                                                     fold_rng)
+#         print(y_train)
         # Select the top n features needed to make .25 from
+        if null_distribution:
+            np.random.shuffle(y_train)
+
         selected_features = select_features(y_train, X_train)
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
@@ -165,8 +171,9 @@ def filter_model(X, y, feature_id=None, n_fold=8):
         model_sel_output = model_selected(
             y_train, X_train, y_val, X_val, selected_features,
             kernel='linear')
-        output_sel.append(model_sel_output)
+        output_sel.append((selected_features, model_sel_output["Accuracy"]))
 
-    final_sel = dict((k, [d[k] for d in output_sel]) for k in output_sel[0])
-    print(final)
-    print(final_sel)
+#     final_sel = dict((k, [d[k] for d in output_sel]) for k in output_sel[0])
+    return output_sel
+#     print(final)
+#     print(final_sel)
