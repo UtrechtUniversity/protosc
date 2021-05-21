@@ -24,7 +24,6 @@ def select_fold(y_folds, X_folds, i_val, rng, balance=True):
         train_zero = rng.choice(train_zero, size=len(train_one),
                                 replace=False)
     selected_data = np.sort(np.append(train_one, train_zero))
-
     return y_val, X_val, y_train[selected_data], X_train[selected_data]
 
 
