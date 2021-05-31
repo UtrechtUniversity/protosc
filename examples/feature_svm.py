@@ -1,37 +1,44 @@
 from pathlib import Path
 import numpy as np
 
-from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, precision_score, accuracy_score, recall_score, f1_score
 from sklearn import svm
 from scipy import stats
 
 from examples.nimstim import execute
-from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
-from protosc.feature_extraction import FourierFeatures
-from protosc.io import ReadImage
+from protosc.simulation import create_simulation_data
 
 
-def create_data(feature_list, y_all, files_all, select: list):
-    """ Create X, y, and image_id arrays """
+def set_data(y, X, i):
+    """ Select one of 8 partitions (i) of training data to be validation data, rest is training """
 
-    # Image ID's: Filter data (only select the two 'select' classes)
-    image_id_0 = np.where(y_all == select[0])[0]
-    image_id_1 = np.where(y_all == select[1])[0]
+    # Set validation data (1 of 8)
+    bal, y_val = balance(y[i])
+    X_val = X[i][bal]
 
-    # y_all: make two categories binary
-    y_all[image_id_0] = 0
-    y_all[image_id_1] = 1
+    # Set training data (7 of 8)
+    train_bal, y_training = balance(np.concatenate(y[0:i] + y[i+1:8]))
+    X_training = np.concatenate(X[0:i] + X[i+1:8])[train_bal]
 
-    # y: Filter data (only select the two 'select' classes)
-    image_id = np.sort(np.append(image_id_0, image_id_1))
-    y = y_all[image_id]
+    return y_val, X_val, y_training, X_training
 
-    # X: Filter data (only select the two 'select' classes)
-    X = feature_list[image_id]
 
-    return X, y, image_id
+def balance(y):
+    """ Balance y and X """
+    zeros = np.where(y == 0)[0]
+    ones = np.where(y == 1)[0]
+
+    # Select equal number of zeros and ones
+    if len(zeros) > len(ones):
+        zeros = zeros[:len(ones)]
+    if len(ones) > len(zeros):
+        ones = ones[:len(zeros)]
+
+    # Return balanced index and balanced y
+    balanced = np.sort(np.append(ones, zeros))
+
+    return balanced, y[balanced]
 
 
 def calc_chisquare(y_training, X_training):
@@ -84,13 +91,12 @@ def model_all(y_training, X_training, y_val, X_val, kernel):
     svclassifier = svm.SVC(kernel=kernel)
     svclassifier.fit(X_training, y_training)
 
-    y_predict = svclassifier.predict(X_val[:, 0])
+    y_predict = svclassifier.predict(X_val)
 
     outcome = {"Accuracy": round(accuracy_score(y_val, y_predict), 2),
                "Precision": round(precision_score(y_val, y_predict), 2),
                "Recall": round(recall_score(y_val, y_predict), 2),
                "F1_score": round(f1_score(y_val, y_predict), 2)}
-
     print(classification_report(list(y_val), list(y_predict)))
 
     return outcome
@@ -102,7 +108,7 @@ def model_selected(y_training, X_training, y_val, X_val, selected_features, kern
     svclassifier = svm.SVC(kernel=kernel)
     svclassifier.fit(X_training[:, selected_features][:, 0], y_training)
 
-    y_predict = svclassifier.predict(X_val[:, selected_features][:, 0])
+    y_predict = svclassifier.predict(X_val[:, selected_features])
 
     outcome = {"Accuracy": round(accuracy_score(y_val, y_predict), 2),
                "Precision": round(precision_score(y_val, y_predict), 2),
@@ -116,29 +122,9 @@ def model_selected(y_training, X_training, y_val, X_val, selected_features, kern
 
 def main():
 
-    # Define pipeline
-    pipe1 = ReadImage() * ViolaJones(20) * CutCircle() * FourierFeatures()
-    pipe2 = ReadImage() * GreyScale() * ViolaJones(20) * \
-        CutCircle() * FourierFeatures()
-    pipe_complex = pipe1 + pipe2
-
-    # Set directory to images
-    stim_data_dir = Path("..", "data", "Nimstim faces")
-
-    # Create feature matrix from images
-    feature_array, y_all, files_all = execute(
-        pipe_complex, stim_data_dir, select='mouth', write=False)
-
-    # Select two most common classes
-    classes = np.unique(y_all, return_counts=True)
-    selection = classes[0][np.argpartition(classes[1], -2)[-2:]]
-
-    # Select one pipeline
-    feature_list = feature_array[1]
-
-    # Create X and y with only the two most common classes
-    X, y, image_id = create_data(
-        feature_list, y_all, files_all, select=selection)
+    # Create X (features, array with 400 feature values per image), y (image class, 0/1), image_id (image identifier, 0-399)
+    X, y, selected_features, biases = create_simulation_data()
+    image_id = [*range(len(y))]
 
     # Split features (X) and labels (y) into train and test data + keep track of image_id
     X_train, X_test, y_train, y_test, id_train, id_test = train_test_split(
@@ -149,17 +135,13 @@ def main():
     X_trainings = np.array_split(X_train, 8)
     id_trainings = np.array_split(id_train, 8)
 
-    # Balance classes
-
     # Train an SVM on the train set (i.e, 7 of the 8 X/y_trainings) while using all features,
     # crossvalidate on holdout (i.e., 1 of the 8 X/y_trainings)
     output = []
     for val in range(8):
         # Set 1 partition as validating data, other 7 as train data
-        y_val = y_trainings[val]
-        X_val = X_trainings[val]
-        y_training = np.concatenate(y_trainings[0:val] + y_trainings[val+1:8])
-        X_training = np.concatenate(X_trainings[0:val] + X_trainings[val+1:8])
+        y_val, X_val, y_training, X_training = set_data(
+            y_trainings, X_trainings, val)
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly', 'sigmoid')
         model_output = model_all(
@@ -173,10 +155,8 @@ def main():
 
     for val in range(8):
         # Set 1 partition as validating data, other 7 as train data
-        y_val = y_trainings[val]
-        X_val = X_trainings[val]
-        y_training = np.concatenate(y_trainings[0:val] + y_trainings[val+1:8])
-        X_training = np.concatenate(X_trainings[0:val] + X_trainings[val+1:8])
+        y_val, X_val, y_training, X_training = set_data(
+            y_trainings, X_trainings, val)
 
         # Select the top n features needed to make .25 from
         selected_features = select_features(y_training, X_training)
