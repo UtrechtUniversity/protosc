@@ -39,7 +39,8 @@ def create_correlated_data(n_base_features=200, n_examples=500,
     np.random.shuffle(y)
     ones = np.where(y == 1)[0]
     base_feature_matrix = np.random.randn(n_examples, n_base_features)
-    feature_matrix = np.empty((n_examples, n_base_features*n_feature_correlated))
+    feature_matrix = np.empty((n_examples,
+                               n_base_features*n_feature_correlated))
     for i in range(n_feature_correlated):
         feature_matrix[:, i::n_feature_correlated] = (
             corr_frac*base_feature_matrix +
