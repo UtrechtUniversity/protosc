@@ -16,42 +16,25 @@ def select_fold(X_folds, y_folds, i_val, rng, balance=True):
     if not balance:
         return X_train, y_train, X_val, y_val
 
-    train_one = np.where(y_train == 1)[0]
-    train_zero = np.where(y_train == 0)[0]
-    if len(train_one) > len(train_zero):
-        train_one = rng.choice(train_one, size=len(train_zero),
-                               replace=False)
-    elif len(train_one) < len(train_zero):
-        train_zero = rng.choice(train_zero, size=len(train_one),
-                                replace=False)
-    selected_data = np.sort(np.append(train_one, train_zero))
-    return X_train[selected_data], y_train[selected_data], X_val, y_val
+    def balance(X, y):
+        ones = np.where(y == 1)[0]
+        zeros = np.where(y == 0)[0]
+        if len(ones) > len(zeros):
+            ones = rng.choice(ones, size=len(zeros), replace=False)
+        elif len(zeros) > len(ones):
+            zeros = rng.choice(zeros, size=len(ones), replace=False)
+        select = np.sort(np.append(ones, zeros))
+        return X[select], y[select]
+
+    return (*balance(X_train, y_train), *balance(X_val, y_val))
 
 
-def model_selected(X_training, y_training, X_val, y_val, selected_features,
-                   kernel):
-    """ Train an SVM on the train set while using the n selected features,
-    crossvalidate on holdout """
-
-    svclassifier = SVC(kernel=kernel)
-    svclassifier.fit(X_training[:, selected_features], y_training)
-
-    y_predict = svclassifier.predict(X_val[:, selected_features])
-
-    outcome = {"Accuracy": accuracy_score(y_val, y_predict),
-               "Precision": precision_score(y_val, y_predict),
-               "Recall": recall_score(y_val, y_predict),
-               "F1_score": f1_score(y_val, y_predict)}
-
-    return outcome
-
-
-def model_all(X_training, y_training, X_val, y_val, kernel):
-    """ Train an SVM on the train set while using all features, crossvalidate
-    on holdout """
+def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
+    """Train an SVM on the train set while using the n selected features,
+    crossvalidate on holdout"""
 
     svclassifier = SVC(kernel=kernel)
-    svclassifier.fit(X_training, y_training)
+    svclassifier.fit(X_train, y_train)
 
     y_predict = svclassifier.predict(X_val)
 
@@ -197,8 +180,8 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
             fast_chisq = False
             break
 
-    y_folds = np.array_split(y, 8)
     X_folds = np.array_split(X, 8)
+    y_folds = np.array_split(y, 8)
 
     # Train an SVM on the train set while using the selected features
     # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
@@ -218,9 +201,9 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
         # 'sigmoid') using only selected features
-        model_sel_output = model_selected(
-            X_train, y_train, X_val, y_val, selected_features,
-            kernel='linear')
+        model_sel_output = train_xvalidate(
+            X_train[:, selected_features], y_train,
+            X_val[:, selected_features], y_val)
         output_sel.append((selected_features, model_sel_output["Accuracy"]))
 
     return output_sel

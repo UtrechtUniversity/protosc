@@ -28,7 +28,7 @@ class CutCircle(BasePipeElement):
 def greyscale(img):
     if not isinstance(img, np.ndarray):
         raise TypeError(f"Grey scaling needs np.ndarray as input type"
-                        " (not: {type(img)})")
+                        f" (not: {type(img)})")
     if img.shape[2] == 1:
         return img
     img_array = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -58,9 +58,10 @@ def search_face(img, classf_names):
 
 def viola_jones(img, add_perc=20):
     classf_names = ["haarcascade_frontalface_default.xml",
-                    "haarcascade_frontalface_alt.xml",]
+                    "haarcascade_frontalface_alt.xml"]
     # Get orientation points of face in image
-    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + classf_names[0])
+    faceCascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + classf_names[0])
     faces = faceCascade.detectMultiScale(
         img,
         scaleFactor=1.3,
@@ -88,12 +89,10 @@ def viola_jones(img, add_perc=20):
 def cut_circle(img):
     shape = img.shape
     assert len(img.shape) >= 2
-
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
     middle = np.array([shape[0]//2, shape[1]//2])
     X -= middle[0]
     Y -= middle[1]
-
     circle_mask = (np.sqrt(X**2 + Y**2).reshape(shape[:2]) >
                    min(img.shape[0]//2, img.shape[1]//2))
     new_img = np.copy(img)

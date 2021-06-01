@@ -5,7 +5,8 @@ from scipy.sparse import csr_matrix
 
 
 class FourierFeatures(BasePipeElement):
-    def __init__(self, n_angular=8, n_spatial=7, circle_cut=True, absolute=True):
+    def __init__(self, n_angular=8, n_spatial=7, circle_cut=True,
+                 absolute=True):
         self.n_angular = n_angular
         self.n_spatial = n_spatial
         self.circle_cut = circle_cut
@@ -43,7 +44,8 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
 
     d_angle = 2*np.pi/n_angular
     d_radius = np.max(middle)/n_spatial
-    angle_id = ((angle/d_angle + 0.5*(2*n_angular+1))%(2*n_angular)).astype(int)
+    angle_id = ((angle/d_angle + 0.5*(2*n_angular+1)
+                 ) % (2*n_angular)).astype(int)
     angle_id = angle_id % n_angular
     radius_id = (radius/d_radius).astype(int)
     all_id = angle_id+radius_id*n_angular
@@ -81,7 +83,8 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
     indices = all_id.reshape(-1)
     data = 1/counts[all_id.reshape(-1)]
 
-    inv_trans_matrix = csr_matrix((data, indices, indptr), shape=(size, all_id.max()+1))
+    inv_trans_matrix = csr_matrix((data, indices, indptr),
+                                  shape=(size, all_id.max()+1))
     results.append(inv_trans_matrix)
     return results
 
@@ -90,5 +93,6 @@ def fourier_features(img, *args, absolute=True, **kwargs):
     fft_map = np.fft.fftshift(np.fft.fft2(img-np.mean(img)))
     if absolute:
         fft_map = np.absolute(fft_map)
-    trans = transform_matrix(fft_map.shape, *args, return_inverse=False, **kwargs)
+    trans = transform_matrix(fft_map.shape, *args, return_inverse=False,
+                             **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))

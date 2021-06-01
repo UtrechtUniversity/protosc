@@ -23,7 +23,9 @@ def create_simulation_data(n_features=400, n_examples=500, n_true_features=25,
                                          replace=False)
     for i_feature, feature_idx in enumerate(selected_features):
         feature_matrix[ones, feature_idx] += biases[i_feature]
-    return feature_matrix, y, selected_features, biases
+
+    ground_truth = {"selected_features": selected_features, "biases": biases}
+    return feature_matrix, y, ground_truth
 
 
 def create_correlated_data(n_base_features=200, n_examples=500,
@@ -65,4 +67,7 @@ def create_correlated_data(n_base_features=200, n_examples=500,
     selected_features = np.where(selected_features)[0]
     biases = bias_values[reorder]
     clusters = clusters[reorder]
-    return X, y, selected_features, biases, clusters
+    ground_truth = {"selected_features": selected_features,
+                    "biases": biases,
+                    "clusters": clusters}
+    return X, y, ground_truth
