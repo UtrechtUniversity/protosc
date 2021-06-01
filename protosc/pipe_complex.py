@@ -20,9 +20,9 @@ class PipeComplex():
         return self
 
     def __add__(self, other):
-        my_pipelines = [l for l in self]
+        my_pipelines = [x for x in self]
         if isinstance(other, PipeComplex):
-            other_pipelines = [l for l in other]
+            other_pipelines = [x for x in other]
         elif isinstance(other, Pipeline):
             other_pipelines = [other]
         elif isinstance(other, BasePipeElement):
