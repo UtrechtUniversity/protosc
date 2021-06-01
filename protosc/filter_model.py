@@ -81,6 +81,25 @@ def calc_chisquare(X_training, y_training):
     return X_chisquare
 
 
+def fast_chisquare(X_training, y_training):
+    N = X_training.shape[0]
+    one_idx = np.where(y_training == 1)[0]
+    zero_idx = np.where(y_training == 0)[0]
+    N_one = len(one_idx)
+    N_zero = len(zero_idx)
+    reverse_order = np.empty(N, dtype=int)
+
+    chisq = np.empty(X_training.shape[1])
+    for i_feature in range(X_training.shape[1]):
+        order = np.argsort(X_training[:, i_feature])
+        reverse_order[order] = np.arange(N)
+        r_zero_sq = (np.mean(reverse_order[zero_idx])+1)**2
+        r_one_sq = (np.mean(reverse_order[one_idx])+1)**2
+        chisq[i_feature] = 12/(N*(N+1))*(
+            N_one*r_one_sq+N_zero*r_zero_sq) - 3*(N+1)
+    return chisq
+
+
 def compute_pval(r, n_data):
     df = n_data - 2
     ts = r * r * (df / (1 - r * r))
@@ -104,7 +123,8 @@ def create_clusters(features_sorted, X):
     cur_cluster = [features_sorted[x_links[0]]]
     all_clusters = []
     for i_link in range(len(x_links)):
-        if feature_selected[x_links[i_link]] or feature_selected[y_links[i_link]]:
+        if (feature_selected[x_links[i_link]] or
+                feature_selected[y_links[i_link]]):
             continue
         if x_links[i_link] != cur_src:
             feature_selected[cur_src] = True
@@ -118,12 +138,15 @@ def create_clusters(features_sorted, X):
     return all_clusters
 
 
-def select_features(X, y, chisq_threshold=0.25):
+def select_features(X, y, chisq_threshold=0.25, fast_chisq=False):
     """Sort the chi-squares from high to low while keeping
     track of the original indices (feature_id)"""
 
     # Calculate chi-square using kruskall-wallis per feature
-    X_chisquare = calc_chisquare(X, y)
+    if fast_chisq:
+        X_chisquare = fast_chisquare(X, y)
+    else:
+        X_chisquare = calc_chisquare(X, y)
 
     # Make a vector containing the new order of the original feature indices
     # when chi-square is sorted from high to low
@@ -167,6 +190,13 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
 
     # Split data into 8 partitions: later use 1 partition as validating data,
     # other 7 as train data
+
+    fast_chisq = True
+    for i_feature in range(X.shape[1]):
+        if len(np.unique(X[:, i_feature])) != X.shape[0]:
+            fast_chisq = False
+            break
+
     y_folds = np.array_split(y, 8)
     X_folds = np.array_split(X, 8)
 
@@ -183,7 +213,8 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
         if null_distribution:
             np.random.shuffle(y_train)
 
-        selected_features = select_features(X_train, y_train)
+        selected_features = select_features(X_train, y_train,
+                                            fast_chisq=fast_chisq)
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
         # 'sigmoid') using only selected features
