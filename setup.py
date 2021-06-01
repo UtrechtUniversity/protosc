@@ -14,5 +14,7 @@ setup(
         'numpy',
         'opencv-python',
         'pandas',
+        'sklearn',
+        'scipy',
     ]
 )
