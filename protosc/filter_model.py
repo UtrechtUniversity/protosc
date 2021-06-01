@@ -26,7 +26,7 @@ def select_fold(X_folds, y_folds, i_val, rng, balance=True):
         select = np.sort(np.append(ones, zeros))
         return X[select], y[select]
 
-    return *balance(X_train, y_train), *balance(X_val, y_val)
+    return (*balance(X_train, y_train), *balance(X_val, y_val))
 
 
 def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
