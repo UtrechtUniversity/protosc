@@ -57,6 +57,9 @@ def search_face(img, classf_names):
 
 
 def viola_jones(img, add_perc=20):
+    if not isinstance(img, np.ndarray):
+        raise TypeError(f"Grey scaling needs np.ndarray as input type"
+                        f" (not: {type(img)})")
     classf_names = ["haarcascade_frontalface_default.xml",
                     "haarcascade_frontalface_alt.xml"]
     # Get orientation points of face in image
@@ -87,6 +90,9 @@ def viola_jones(img, add_perc=20):
 
 
 def cut_circle(img):
+    if not isinstance(img, np.ndarray):
+        raise TypeError(f"Grey scaling needs np.ndarray as input type"
+                        f" (not: {type(img)})")
     shape = img.shape
     assert len(img.shape) >= 2
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))

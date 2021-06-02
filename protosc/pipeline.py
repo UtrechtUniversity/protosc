@@ -12,7 +12,7 @@ class Pipeline(ABC):
             elif isinstance(arg, Pipeline):
                 self._elements.extend(arg._elements)
             else:
-                raise ValueError(f"Cannot extend pipe with type: {type(arg)}")
+                raise TypeError(f"Cannot extend pipe with type: {type(arg)}")
 
     def execute(self, package, max_depth=None):
         iterate, new_max_depth = get_new_level(package, max_depth)

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from protosc.io import read_image
+from protosc.io import read_image, ReadImage
 
 
 @pytest.mark.parametrize(
@@ -15,3 +15,9 @@ def test_read_image(filename, resolution):
     portrait_fp = Path("tests", "data", filename)
     img = read_image(portrait_fp)
     assert img.shape == (resolution[1], resolution[0], 3)
+    ri = ReadImage()
+    try:
+        ri.execute("Non-existing file")
+        assert False, "Expecting FileNotFoundError."
+    except FileNotFoundError:
+        pass

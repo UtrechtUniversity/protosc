@@ -37,8 +37,8 @@ class PipeComplex():
 
     def __mul__(self, other):
         if isinstance(other, PipeComplex):
-            my_pipelines = [Pipeline(p, other) for p in self]
-            other_pipelines = [Pipeline(p, other) for p in self]
+            my_pipelines = [p for p in self]
+            other_pipelines = [p for p in other]
             new_pipelines = []
             for my_pipe in my_pipelines:
                 for other_pipe in other_pipelines:
@@ -50,8 +50,6 @@ class PipeComplex():
         return NotImplemented
 
     def __rmul__(self, other):
-        if isinstance(other, PipeComplex):
-            raise ValueError("Uhuh?")
         if isinstance(other, (Pipeline, BasePipeElement)):
             all_pipelines = [Pipeline(other, p) for p in self]
             return self.__class__(*all_pipelines)
@@ -67,6 +65,9 @@ class PipeComplex():
                     yield from generate_pipelines(new_pipe_tree, cur_elements)
                     cur_elements.pop()
         return generate_pipelines(self._pipe_tree, [])
+
+    def __len__(self):
+        return len([x for x in self])
 
     def add_complex(self, other):
         for pipeline in other:
@@ -92,19 +93,18 @@ class PipeComplex():
         if iterate:
             return [self.execute(part, new_max_depth) for part in package]
 
-        def get_result(package, pipe_tree):
+        def get_result(cur_package, pipe_tree):
             results = {}
             for key, new_pipe_tree in pipe_tree.items():
                 if key is None:
-                    results[new_pipe_tree] = package
+                    results[new_pipe_tree] = cur_package
                     continue
-
                 element = self._pipe_elements[key]
                 try:
-                    if not isinstance(package, BaseException):
-                        new_package = element.execute(package)
+                    if not isinstance(cur_package, BaseException):
+                        new_package = element.execute(cur_package)
                     else:
-                        new_package = package
+                        new_package = cur_package
                     new_result = get_result(new_package, new_pipe_tree)
                 except BaseException as e:
                     e.source = element.name
