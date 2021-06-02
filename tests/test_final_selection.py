@@ -1,10 +1,14 @@
+from collections import defaultdict
+
+import numpy as np
+
 from protosc.simulation import create_correlated_data
 from protosc.filter_model import filter_model
-from collections import defaultdict
 from protosc.final_selection import final_selection
 
 
 def test_final_selection():
+    np.random.seed(2390875)
     X, y, truth = create_correlated_data(
         n_base_features=30, n_true_features=4, n_examples=300,
         n_feature_correlated=3)
