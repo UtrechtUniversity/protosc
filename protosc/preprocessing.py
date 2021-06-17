@@ -4,12 +4,29 @@ from protosc.pipeline import BasePipeElement
 
 
 class GreyScale(BasePipeElement):
+    """Convert an image to grey scale.
+    """
     def _execute(self, img):
         return greyscale(img)
 
 
 class ViolaJones(BasePipeElement):
     def __init__(self, add_perc=20):
+        """Apply the Viola-Jones to an image.
+
+        It is assumed that there is only a single easily detected face
+        in the image.
+
+        Arguments
+        ---------
+        add_perc: (int, float)
+            Margin to add to the output image.
+
+        Returns
+        -------
+        img: np.ndarray
+            Image centered on the face, with a margin around it.
+        """
         self.add_perc = add_perc
 
     def _execute(self, img):
@@ -35,7 +52,11 @@ def greyscale(img):
     return img_array.reshape(*img_array.shape, 1)
 
 
-def search_face(img, classf_names):
+def _search_face(img, classf_names):
+    """Try different settings to detect a face.
+
+    Keep trying until we have found a face, or scale < 1.05
+    """
     d_scale = 0.8
     classifiers = [cv2.CascadeClassifier(cv2.data.haarcascades + x)
                    for x in classf_names]
@@ -72,7 +93,7 @@ def viola_jones(img, add_perc=20):
         minSize=(30, 30)
     )
     if isinstance(faces, tuple):
-        faces = search_face(img, classf_names)
+        faces = _search_face(img, classf_names)
 
     # Crop face (with additional percentage) and safe as 200x200 pixels image
     margin_plus = 1 + add_perc / 100
@@ -83,6 +104,7 @@ def viola_jones(img, add_perc=20):
                         int(x*margin_min):int(x*margin_plus) + w]
         roi_color = cv2.resize(roi_color, (200, 200))
 
+    # Reshape the array to have three dimensions.
     if len(roi_color.shape) == 2:
         roi_color = roi_color.reshape(*roi_color.shape, 1)
 
@@ -95,6 +117,7 @@ def cut_circle(img):
                         f" (not: {type(img)})")
     shape = img.shape
     assert len(img.shape) >= 2
+    # Compute the inner circle around the middle point.
     X, Y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
     middle = np.array([shape[0]//2, shape[1]//2])
     X -= middle[0]

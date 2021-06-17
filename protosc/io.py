@@ -3,6 +3,18 @@ from protosc.pipeline import BasePipeElement
 
 
 class ReadImage(BasePipeElement):
+    """Read an image from a file.
+
+    Arguments
+    ---------
+    fp: (str, pathlib.Path)
+        Path to file.
+
+    Returns
+    -------
+    img: np.ndarray
+        Numpy array with the image data (x, y, 3)
+    """
     def _execute(self, fp):
         return read_image(fp)
 
