@@ -60,21 +60,6 @@ class FeatureMatrix():
         return final_r_matrix
 
     def get_slice(self, key, rev_lookup_table=None):
-        def convert_slice(s):
-            if s.start is None:
-                start = 0
-            else:
-                start = key[1].start
-            if s.stop is None:
-                stop = len(self.rev_lookup_table)
-            else:
-                stop = key[1].stop
-            if s.step is None:
-                step = 1
-            else:
-                step = key[1].step
-            return start, stop, step
-
         if rev_lookup_table is None:
             rev_lookup_table = self.rev_lookup_table
         if isinstance(key, tuple):
@@ -82,7 +67,8 @@ class FeatureMatrix():
                 raise ValueError("Wrong dimension")
             rows = key[0]
             if isinstance(key[1], slice):
-                cols = [i for i in range(*convert_slice(key[1]))]
+                srange = convert_slice(key[1], self.rev_lookup_table)
+                cols = [i for i in range(*srange)]
             else:
                 try:
                     int(key[1])
@@ -134,6 +120,22 @@ class FeatureMatrix():
                 X_val, y_val = balance_fold(X_val, y_val)
             yield (FeatureMatrix(X_train, self.rev_lookup_table), y_train,
                    FeatureMatrix(X_val, self.rev_lookup_table), y_val)
+
+
+def convert_slice(s, rev_lookup_table):
+    if s.start is None:
+        start = 0
+    else:
+        start = s.start
+    if s.stop is None:
+        stop = len(rev_lookup_table)
+    else:
+        stop = s.stop
+    if s.step is None:
+        step = 1
+    else:
+        step = s.step
+    return start, stop, step
 
 
 class FeatureMatrixView():
