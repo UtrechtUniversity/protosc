@@ -26,7 +26,8 @@ class FeatureMatrix():
             i_col = 0
             for features in data_packet.values():
                 for sub_feature_id in range(features.shape[0]):
-                    X[i_data, i_col: i_col+features.shape[1]] = features[sub_feature_id]
+                    X[i_data, i_col: i_col+features.shape[1]] = features[
+                        sub_feature_id]
                     i_col += features.shape[1]
         return cls(X, rev_lookup_table)
 
@@ -59,6 +60,21 @@ class FeatureMatrix():
         return final_r_matrix
 
     def get_slice(self, key, rev_lookup_table=None):
+        def convert_slice(s):
+            if s.start is None:
+                start = 0
+            else:
+                start = key[1].start
+            if s.stop is None:
+                stop = len(self.rev_lookup_table)
+            else:
+                stop = key[1].stop
+            if s.step is None:
+                step = 1
+            else:
+                step = key[1].step
+            return start, stop, step
+
         if rev_lookup_table is None:
             rev_lookup_table = self.rev_lookup_table
         if isinstance(key, tuple):
@@ -66,19 +82,7 @@ class FeatureMatrix():
                 raise ValueError("Wrong dimension")
             rows = key[0]
             if isinstance(key[1], slice):
-                if key[1].start is None:
-                    start = 0
-                else:
-                    start = key[1].start
-                if key[1].stop is None:
-                    stop = len(self.rev_lookup_table)
-                else:
-                    stop = key[1].stop
-                if key[1].step is None:
-                    step = 1
-                else:
-                    step = key[1].step
-                cols = [i for i in range(start, stop, step)]
+                cols = [i for i in range(*convert_slice(key[1]))]
             else:
                 try:
                     int(key[1])
