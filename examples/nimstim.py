@@ -7,6 +7,7 @@ import csv
 from protosc.preprocessing import GreyScale, ViolaJones, CutCircle
 from protosc.feature_extraction import FourierFeatures
 from protosc.io import ReadImage
+from pandas import DataFrame
 
 
 def create_csv(stim_data_dir, write=False):
@@ -62,7 +63,7 @@ def create_csv(stim_data_dir, write=False):
               'sex': output[0],
               'emotion': output[1],
               'mouth': output[2]}
-    return df
+    return DataFrame.from_dict(df)
 
 
 def select_files(stim_data_dir, select: str, write=False):

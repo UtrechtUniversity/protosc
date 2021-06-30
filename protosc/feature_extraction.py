@@ -69,7 +69,7 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
     # Compute the coarse graining for each pixel.
     d_angle = 2*np.pi/n_angular
     d_radius = np.min(middle)/n_spatial
-    angle_id = ((angle/d_angle + 0.5*(2*n_angular+1)
+    angle_id = ((2*angle/d_angle + 0.5*(2*n_angular+1)
                  ) % (2*n_angular)).astype(int)
     angle_id = angle_id % n_angular
     radius_id = (radius/d_radius).astype(int)
@@ -128,7 +128,8 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
 
 
 def fourier_features(img, *args, absolute=True, **kwargs):
-    fft_map = np.fft.fftshift(np.fft.fft2(img-np.mean(img)))
+    fft_map = np.fft.fftshift(
+        np.fft.fft2(img-np.mean(img, axis=(0, 1)), axes=(0, 1)))
     if absolute:
         fft_map = np.absolute(fft_map)
     trans = transform_matrix(fft_map.shape, *args, return_inverse=False,
