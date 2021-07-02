@@ -1,4 +1,5 @@
 import numpy as np
+from protosc.feature_matrix import FeatureMatrix
 
 
 def create_simulation_data(n_features=400, n_examples=500, n_true_features=25,
@@ -25,7 +26,7 @@ def create_simulation_data(n_features=400, n_examples=500, n_true_features=25,
         feature_matrix[ones, feature_idx] += biases[i_feature]
 
     ground_truth = {"selected_features": selected_features, "biases": biases}
-    return feature_matrix, y, ground_truth
+    return FeatureMatrix(feature_matrix), y, ground_truth
 
 
 def create_correlated_data(n_base_features=200, n_examples=500,
@@ -70,4 +71,4 @@ def create_correlated_data(n_base_features=200, n_examples=500,
     ground_truth = {"selected_features": selected_features,
                     "biases": biases,
                     "clusters": clusters}
-    return X, y, ground_truth
+    return FeatureMatrix(X), y, ground_truth

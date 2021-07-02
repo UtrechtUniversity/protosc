@@ -2,8 +2,15 @@ import numpy as np
 
 
 class FeatureMatrix():
-    def __init__(self, X, rev_lookup_table):
+    def __init__(self, X, rev_lookup_table=None):
         self.X = X
+        if rev_lookup_table is None:
+            rev_lookup_table = [
+                {"pipeline": "matrix",
+                 "sub_feature_id": i,
+                 "col_ids": [i]} for i in range(X.shape[1])
+            ]
+
         self.rev_lookup_table = rev_lookup_table
 
     @classmethod
@@ -33,15 +40,13 @@ class FeatureMatrix():
 
     @classmethod
     def from_matrix(cls, X):
-        rev_lookup_table = [
-            {"pipeline": "matrix",
-             "sub_feature_id": i,
-             "col_ids": [i]} for i in range(X.shape[1])
-        ]
-        return cls(X, rev_lookup_table)
+        return cls(X)
 
     def __getitem__(self, key):
         return self.get_slice(key)
+
+    def __setitem__(self, key, val):
+        return self.set_slice(key, val)
 
     def corrcoef(self, features_sorted):
         X_new = self[:, features_sorted]
@@ -82,16 +87,43 @@ class FeatureMatrix():
         else:
             return self.X[key]
 
+    def set_slice(self, key, val, rev_lookup_table=None):
+        if rev_lookup_table is None:
+            rev_lookup_table = self.rev_lookup_table
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise ValueError("Wrong dimension")
+            rows = key[0]
+            if isinstance(key[1], slice):
+                srange = convert_slice(key[1], self.rev_lookup_table)
+                cols = [i for i in range(*srange)]
+            else:
+                try:
+                    int(key[1])
+                    cols = [key[1]]
+                except TypeError:
+                    cols = key[1]
+            col_ids = []
+            for i_feature in cols:
+                col_ids.extend(self.rev_lookup_table[i_feature]["col_ids"])
+            self.X[rows, col_ids] = val
+        else:
+            self.X[key] = val
+
     @property
     def shape(self):
         return self.X.shape[0], len(self.rev_lookup_table)
+
+    @property
+    def size(self):
+        return self.shape[0]*self.shape[1]
 
     def kfold(self, y, k=8, rng=None, balance=True):
         if rng is None:
             rng = np.random.default_rng()
 
-        X_folds = np.array_split(self.X, 8)
-        y_folds = np.array_split(y, 8)
+        X_folds = np.array_split(self.X, k)
+        y_folds = np.array_split(y, k)
 
         def balance_fold(X, y):
             categories = np.unique(y)

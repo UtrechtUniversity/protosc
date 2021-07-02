@@ -74,8 +74,13 @@ def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
     angle_id = angle_id % n_angular
     radius_id = (radius/d_radius).astype(int)
     all_id = angle_id+radius_id*n_angular
+    unique_id = np.unique(all_id)
+    if all_id.max() > len(unique_id)-1:
+        conversion = np.zeros(all_id.max()+1, dtype=int)
+        conversion[unique_id] = np.arange(len(unique_id))
+        all_id = conversion[all_id]
 
-    # Set up the sparse matrix that transforms image data.
+#     Set up the sparse matrix that transforms image data.
     indptr = np.arange(size+1)
     indices = all_id.reshape(-1)
     data = np.ones(size, dtype=int)

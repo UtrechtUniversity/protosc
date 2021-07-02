@@ -28,7 +28,7 @@ def calc_chisquare(X_training, y_training):
         x = X_training[:, feature]
         x1 = x[y_training == 0]
         x2 = x[y_training == 1]
-        if x.shape[1] > 1:
+        if len(x.shape) > 1 and x.shape[1] > 1:
             new_chisquare = np.max([
                 stats.kruskal(x1[:, i], x2[:, i]) for i in range(x.shape[1])
             ])
