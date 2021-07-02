@@ -159,7 +159,7 @@ def select_features(X, y, chisq_threshold=0.25, fast_chisq=False):
             break
         selected_clusters.extend(cluster)
 
-    return selected_clusters
+    return selected_clusters, clusters
 
 
 def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
