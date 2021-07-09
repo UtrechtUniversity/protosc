@@ -75,3 +75,16 @@ def create_correlated_data(n_base_features=200, n_examples=500,
                     "biases": biases,
                     "clusters": clusters}
     return FeatureMatrix(X), y, ground_truth
+
+
+def compare_results(selected_features, ground_truth):
+    total_bias = np.sum(np.abs(ground_truth["biases"]))
+    selected_bias = np.sum(np.abs(ground_truth["biases"][selected_features]))
+    n_total_features = len(ground_truth["selected_features"])
+    n_correct_selected = np.sum(ground_truth["biases"][selected_features] != 0)
+    n_false_selected = np.sum(ground_truth["biases"][selected_features] == 0)
+    print(f"Percentage of features correct: "
+          f"{n_correct_selected/(n_correct_selected+n_false_selected)}")
+    print(f"Percentage of features found: "
+          f"{n_correct_selected/n_total_features}")
+    print(f"Percentage of bias found: {selected_bias/total_bias}")
