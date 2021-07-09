@@ -1,5 +1,6 @@
 import numpy as np
-from protosc.filter_model import fast_chisquare, calc_chisquare, create_clusters, select_fold, train_xvalidate, select_features
+from protosc.filter_model import train_xvalidate
+from protosc.feature_matrix import FeatureMatrix
 
 
 def calc_accuracy(X, y, selection, n_fold=8):
@@ -15,19 +16,13 @@ def calc_accuracy(X, y, selection, n_fold=8):
     fold_seed = None
     fold_rng = np.random.default_rng(fold_seed)
 
-    X_folds = np.array_split(X, n_fold)
-    y_folds = np.array_split(y, n_fold)
-
-    for i_val in range(n_fold):
+    for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
         accuracy = []
-        X_train, y_train, X_val, y_val = select_fold(X_folds, y_folds, i_val,
-                                                     fold_rng)
+        X_train, y_train, X_val, y_val = cur_fold
 
-        model_sel_output = train_xvalidate(X_train[:, selection],
-                                           y_train,
-                                           X_val[:, selection],
-                                           y_val)
-        accuracy.append(model_sel_output['Accuracy'])
+        accuracy.append(train_xvalidate(
+            X_train[:, selection], y_train, X_val[:, selection],
+            y_val))
 
     return np.array(accuracy).mean()
 
@@ -67,6 +62,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15, stop
     selected = []
     model = []
     not_added = 0
+    if not isinstance(X, FeatureMatrix):
+        X = FeatureMatrix(X)
 
     # Define search order
     if decrease:
@@ -127,7 +124,7 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15, stop
                         print(f'selected clusters: {selected}')
 
             # Add cluster resulting in highest increase to model
-            if add_im == False and added > 0:
+            if add_im is False and added > 0:
                 selected.append(selected_feature)
                 model = __append_model(clusters, model, selected)
                 print(
