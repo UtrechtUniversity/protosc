@@ -34,6 +34,9 @@ def create_correlated_data(n_base_features=200, n_examples=500,
                            n_feature_correlated=5,
                            min_dev=0.25, max_dev=0.5,
                            corr_frac=0.9):
+    """Create mock data set.
+    200 base features with 5 derived/correlated features each (total 1K).
+    """
     n_one = n_examples//2
     n_zero = n_examples - n_one
     n_features = n_base_features*n_feature_correlated

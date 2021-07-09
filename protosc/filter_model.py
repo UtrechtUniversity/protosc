@@ -145,7 +145,7 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
         feature_id = np.arange(len(y))
 
     if not isinstance(X, FeatureMatrix):
-        X = FeatureMatrix.from_matrix(X)
+        X = FeatureMatrix(X)
 
     fold_rng = np.random.default_rng(fold_seed)
 

@@ -2,6 +2,7 @@ import numpy as np
 
 
 class FeatureMatrix():
+    """Feature matrix which is aware of combined features."""
     def __init__(self, X, rev_lookup_table=None):
         self.X = X
         if rev_lookup_table is None:
@@ -15,6 +16,7 @@ class FeatureMatrix():
 
     @classmethod
     def from_pipe_data(cls, data):
+        """Create feature matrix from PipeComplex data."""
         n_row = len(data)
         # First find the structure
         rev_lookup_table = []
@@ -49,11 +51,13 @@ class FeatureMatrix():
         return self.set_slice(key, val)
 
     def corrcoef(self, features_sorted):
+        """Compute the correlation coefficients."""
         X_new = self[:, features_sorted]
         r_matrix = np.corrcoef(X_new, rowvar=False)
         cols_occ = [len(self.rev_lookup_table[x]["col_ids"])
                     for x in features_sorted]
 
+        # Reduce the matrix to the proper number of features.
         final_r_matrix = np.zeros((len(features_sorted), len(features_sorted)))
         cols_cum = np.append([0], np.cumsum(cols_occ))
         for i_feature in range(len(features_sorted)):
@@ -119,12 +123,14 @@ class FeatureMatrix():
         return self.shape[0]*self.shape[1]
 
     def kfold(self, y, k=8, rng=None, balance=True):
+        """Generator to loop over k folds."""
         if rng is None:
             rng = np.random.default_rng()
 
         X_folds = np.array_split(self.X, k)
         y_folds = np.array_split(y, k)
 
+        # Balance the folds.
         def balance_fold(X, y):
             categories = np.unique(y)
             index_list = []
@@ -155,6 +161,7 @@ class FeatureMatrix():
 
 
 def convert_slice(s, rev_lookup_table):
+    """Convert slice to (start, stop, step)."""
     if s.start is None:
         start = 0
     else:
