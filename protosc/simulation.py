@@ -25,7 +25,9 @@ def create_simulation_data(n_features=400, n_examples=500, n_true_features=25,
     for i_feature, feature_idx in enumerate(selected_features):
         feature_matrix[ones, feature_idx] += biases[i_feature]
 
-    ground_truth = {"selected_features": selected_features, "biases": biases}
+    final_biases = np.zeros(n_features)
+    final_biases[selected_features] = biases
+    ground_truth = {"selected_features": selected_features, "biases": final_biases}
     return FeatureMatrix(feature_matrix), y, ground_truth
 
 
@@ -77,6 +79,46 @@ def create_correlated_data(n_base_features=200, n_examples=500,
     return FeatureMatrix(X), y, ground_truth
 
 
+def create_categorical_data(n_features=500, n_examples=500,
+                            n_true_features=25,
+                            min_dev=0.25, max_dev=0.5,
+                            n_categories=5):
+    y = (n_categories*np.arange(n_examples)/n_examples).astype(int)
+    split_y = []
+    for cat in range(n_categories):
+        split_y.append((y == cat).astype(int))
+    feature_matrix = np.random.randn(n_examples, n_features)
+    biases = np.zeros(n_features)
+    biases[:n_true_features] = np.linspace(min_dev, max_dev, n_true_features)
+    biases[:n_true_features] *= (-1)**np.arange(n_true_features)
+    selected_features = np.zeros(n_features, dtype=np.bool)
+    selected_features[:n_true_features] = 1
+
+    for i_feature in range(n_features):
+        cur_bias = biases[i_feature]
+        if cur_bias == 0:
+            continue
+        fractions = np.random.rand(n_categories)
+        fractions = (n_categories/2)*fractions/np.sum(fractions)
+        for i_cat in range(n_categories):
+            feature_matrix[split_y[i_cat], i_feature] += (
+                cur_bias*fractions[i_cat])
+
+    feature_reorder = np.random.permutation(n_features)
+    example_reorder = np.random.permutation(n_examples)
+
+    X = feature_matrix[:, feature_reorder]
+    X = X[example_reorder, :]
+    y = y[example_reorder]
+    biases = biases[feature_reorder]
+    selected_features = np.where(selected_features[feature_reorder])[0]
+    ground_truth = {
+        "selected_features": selected_features,
+        "biases": biases,
+    }
+    return FeatureMatrix(X), y, ground_truth
+
+
 def compare_results(selected_features, ground_truth):
     total_bias = np.sum(np.abs(ground_truth["biases"]))
     selected_bias = np.sum(np.abs(ground_truth["biases"][selected_features]))
@@ -84,7 +126,7 @@ def compare_results(selected_features, ground_truth):
     n_correct_selected = np.sum(ground_truth["biases"][selected_features] != 0)
     n_false_selected = np.sum(ground_truth["biases"][selected_features] == 0)
     print(f"Percentage of features correct: "
-          f"{n_correct_selected/(n_correct_selected+n_false_selected)}")
+          f"{n_correct_selected}/{(n_correct_selected+n_false_selected)}")
     print(f"Percentage of features found: "
-          f"{n_correct_selected/n_total_features}")
+          f"{n_correct_selected}/{n_total_features}")
     print(f"Percentage of bias found: {selected_bias/total_bias}")
