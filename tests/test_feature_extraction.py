@@ -16,8 +16,10 @@ def test_transform_matrix(shape, cut_circle, n_angular, n_spatial):
         return_inverse=True, return_ids=True)
 
     if cut_circle:
-        assert trans_matrix.shape == (n_parts, size)
-        assert inv_trans_matrix.shape == (size, n_parts)
+        assert trans_matrix.shape[1] == size
+        assert trans_matrix.shape[0] <= n_parts
+        assert inv_trans_matrix.shape[0] == size
+        assert inv_trans_matrix.shape[1] <= n_parts
     else:
         assert trans_matrix.shape[1] == size
         assert trans_matrix.shape[0] > n_parts
@@ -31,6 +33,4 @@ def test_transform_matrix(shape, cut_circle, n_angular, n_spatial):
             assert trans_matrix[surf_id, i_pixel] == 1
             assert inv_trans_matrix[i_pixel, surf_id] > 0
 
-    # This might be an issue for cut_circle==False
-    if cut_circle:
-        assert np.allclose(inv_trans_matrix.sum(axis=0), 1)
+    assert np.allclose(inv_trans_matrix.sum(axis=0), 1)

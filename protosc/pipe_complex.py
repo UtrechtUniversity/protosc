@@ -3,6 +3,14 @@ from protosc.utils import get_new_level
 
 
 class PipeComplex():
+    """Set of pipelines that combines them efficiently.
+
+    On a conceptual level, pipe complexes consist of a set of pipelines,
+    which in turn consist of pipe elements, which are simply preprocessing
+    or feature extraction steps.
+
+    Caching is currently not supported.
+    """
     def __init__(self, *pipes):
         self._pipe_elements = {}
         self._pipe_tree = {}
@@ -13,6 +21,7 @@ class PipeComplex():
         return "\n".join([str(p) for p in self])
 
     def __iadd__(self, other):
+        """Add another parallel pipeline/complex/element."""
         if isinstance(other, PipeComplex):
             self.add_complex(other)
         if isinstance(other, (Pipeline, BasePipeElement)):
@@ -20,6 +29,7 @@ class PipeComplex():
         return self
 
     def __add__(self, other):
+        """Add another parallel pipeline/complex/element."""
         my_pipelines = [x for x in self]
         if isinstance(other, PipeComplex):
             other_pipelines = [x for x in other]
@@ -56,6 +66,7 @@ class PipeComplex():
         return NotImplemented
 
     def __iter__(self):
+        """Looping over a pipe complex generates pipelines."""
         def generate_pipelines(pipe_tree, cur_elements):
             for key, new_pipe_tree in pipe_tree.items():
                 if key is None:
@@ -67,6 +78,7 @@ class PipeComplex():
         return generate_pipelines(self._pipe_tree, [])
 
     def __len__(self):
+        """Return the number of pipelines."""
         return len([x for x in self])
 
     def add_complex(self, other):
@@ -74,6 +86,7 @@ class PipeComplex():
             self.add_pipeline(pipeline)
 
     def add_pipeline(self, other):
+        """Add a single parallel pipeline to the complex (self)."""
         if isinstance(other, BasePipeElement):
             other = Pipeline(other)
         tree_pointer = self._pipe_tree
@@ -89,24 +102,35 @@ class PipeComplex():
         tree_pointer[None] = other.name
 
     def execute(self, package, max_depth=None):
+        """Execute the pipelines on data.
+
+        The format of the data should be the same as what the
+        first pipe element expects, or iterables thereof.
+        """
+        # If the package is iterable and we haven't reached max_depth
+        # return a list with the results of all parts of the package.
         iterate, new_max_depth = get_new_level(package, max_depth)
         if iterate:
             return [self.execute(part, new_max_depth) for part in package]
 
+        # Use recursion to execute the whole complex tree.
         def get_result(cur_package, pipe_tree):
             results = {}
             for key, new_pipe_tree in pipe_tree.items():
+                # key == None means we're at a leaf of the tree.
                 if key is None:
                     results[new_pipe_tree] = cur_package
                     continue
                 element = self._pipe_elements[key]
                 try:
+                    # Compute the next element if we're error free.
                     if not isinstance(cur_package, BaseException):
                         new_package = element.execute(cur_package)
                     else:
                         new_package = cur_package
                     new_result = get_result(new_package, new_pipe_tree)
                 except BaseException as e:
+                    # Store the exception and where it occured.
                     e.source = element.name
                     new_result = get_result(e, new_pipe_tree)
                 results.update(new_result)

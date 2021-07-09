@@ -1,32 +1,9 @@
 import numpy as np
 from sklearn.svm import SVC
-from sklearn.metrics import precision_score, accuracy_score, recall_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
 from scipy import stats
 from scipy.special import betainc
-
-
-def select_fold(X_folds, y_folds, i_val, rng, balance=True):
-    n_fold = len(y_folds)
-    y_val = y_folds[i_val]
-    X_val = X_folds[i_val]
-    y_train = np.concatenate(y_folds[0:i_val] + y_folds[i_val+1:n_fold])
-    X_train = np.concatenate(X_folds[0:i_val] + X_folds[i_val+1:n_fold])
-
-    if not balance:
-        return X_train, y_train, X_val, y_val
-
-    def balance(X, y):
-        ones = np.where(y == 1)[0]
-        zeros = np.where(y == 0)[0]
-        if len(ones) > len(zeros):
-            ones = rng.choice(ones, size=len(zeros), replace=False)
-        elif len(zeros) > len(ones):
-            zeros = rng.choice(zeros, size=len(ones), replace=False)
-        select = np.sort(np.append(ones, zeros))
-        return X[select], y[select]
-
-    return (*balance(X_train, y_train), *balance(X_val, y_val))
+from protosc.feature_matrix import FeatureMatrix
 
 
 def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
@@ -37,13 +14,7 @@ def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
     svclassifier.fit(X_train, y_train)
 
     y_predict = svclassifier.predict(X_val)
-
-    outcome = {"Accuracy": accuracy_score(y_val, y_predict),
-               "Precision": precision_score(y_val, y_predict),
-               "Recall": recall_score(y_val, y_predict),
-               "F1_score": f1_score(y_val, y_predict)}
-
-    return outcome
+    return accuracy_score(y_val, y_predict)
 
 
 def calc_chisquare(X_training, y_training):
@@ -57,30 +28,36 @@ def calc_chisquare(X_training, y_training):
         x = X_training[:, feature]
         x1 = x[y_training == 0]
         x2 = x[y_training == 1]
-        X_chisquare.append(stats.kruskal(x1, x2).statistic)
+        if len(x.shape) > 1:
+            new_chisquare = np.max([
+                stats.kruskal(x1[:, i], x2[:, i]) for i in range(x.shape[1])
+            ])
+        else:
+            new_chisquare = stats.kruskal(x1, x2).statistic
+        X_chisquare.append(new_chisquare)
 
     X_chisquare = np.array(X_chisquare)
 
     return X_chisquare
 
 
-def fast_chisquare(X_training, y_training):
-    N = X_training.shape[0]
-    one_idx = np.where(y_training == 1)[0]
-    zero_idx = np.where(y_training == 0)[0]
-    N_one = len(one_idx)
-    N_zero = len(zero_idx)
-    reverse_order = np.empty(N, dtype=int)
-
-    chisq = np.empty(X_training.shape[1])
-    for i_feature in range(X_training.shape[1]):
-        order = np.argsort(X_training[:, i_feature])
-        reverse_order[order] = np.arange(N)
-        r_zero_sq = (np.mean(reverse_order[zero_idx])+1)**2
-        r_one_sq = (np.mean(reverse_order[one_idx])+1)**2
-        chisq[i_feature] = 12/(N*(N+1))*(
-            N_one*r_one_sq+N_zero*r_zero_sq) - 3*(N+1)
-    return chisq
+# def fast_chisquare(X_training, y_training):
+#     N = X_training.shape[0]
+#     one_idx = np.where(y_training == 1)[0]
+#     zero_idx = np.where(y_training == 0)[0]
+#     N_one = len(one_idx)
+#     N_zero = len(zero_idx)
+#     reverse_order = np.empty(N, dtype=int)
+#
+#     chisq = np.empty(X_training.shape[1])
+#     for i_feature in range(X_training.shape[1]):
+#         order = np.argsort(X_training[:, i_feature])
+#         reverse_order[order] = np.arange(N)
+#         r_zero_sq = (np.mean(reverse_order[zero_idx])+1)**2
+#         r_one_sq = (np.mean(reverse_order[one_idx])+1)**2
+#         chisq[i_feature] = 12/(N*(N+1))*(
+#             N_one*r_one_sq+N_zero*r_zero_sq) - 3*(N+1)
+#     return chisq
 
 
 def compute_pval(r, n_data):
@@ -91,7 +68,10 @@ def compute_pval(r, n_data):
 
 
 def create_clusters(features_sorted, X):
-    r_matrix = np.corrcoef(X[:, features_sorted], rowvar=False)
+    if isinstance(X, FeatureMatrix):
+        r_matrix = X.corrcoef(features_sorted)
+    else:
+        r_matrix = np.corrcoef(X[:, features_sorted], rowvar=False)
     x_links, y_links = np.where(np.triu(r_matrix, 1)**2 >= 0.5)
     rvals = r_matrix[x_links, y_links]
     pvals = compute_pval(rvals, X.shape[0])
@@ -121,15 +101,12 @@ def create_clusters(features_sorted, X):
     return all_clusters
 
 
-def select_features(X, y, chisq_threshold=0.25, fast_chisq=False):
+def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
     """Sort the chi-squares from high to low while keeping
     track of the original indices (feature_id)"""
 
     # Calculate chi-square using kruskall-wallis per feature
-    if fast_chisq:
-        X_chisquare = fast_chisquare(X, y)
-    else:
-        X_chisquare = calc_chisquare(X, y)
+    X_chisquare = calc_chisquare(X, y)
 
     # Make a vector containing the new order of the original feature indices
     # when chi-square is sorted from high to low
@@ -167,43 +144,32 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
     if feature_id is None:
         feature_id = np.arange(len(y))
 
-#     np.random.seed(seed)
+    if not isinstance(X, FeatureMatrix):
+        X = FeatureMatrix(X)
+
     fold_rng = np.random.default_rng(fold_seed)
-#     np.random.seed(seed)
 
     # Split data into 8 partitions: later use 1 partition as validating data,
     # other 7 as train data
-
-    fast_chisq = True
-    for i_feature in range(X.shape[1]):
-        if len(np.unique(X[:, i_feature])) != X.shape[0]:
-            fast_chisq = False
-            break
-
-    X_folds = np.array_split(X, 8)
-    y_folds = np.array_split(y, 8)
 
     # Train an SVM on the train set while using the selected features
     # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
     output_sel = []
 
-    for i_val in range(n_fold):
-        # Set 1 partition as validating data, other 7 as train data
-        X_train, y_train, X_val, y_val = select_fold(X_folds, y_folds, i_val,
-                                                     fold_rng)
+    for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
+        X_train, y_train, X_val, y_val = cur_fold
 
         # Select the top n features needed to make .25
         if null_distribution:
             np.random.shuffle(y_train)
 
-        selected_features = select_features(X_train, y_train,
-                                            fast_chisq=fast_chisq)
+        selected_features = select_features(X_train, y_train)
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
         # 'sigmoid') using only selected features
         model_sel_output = train_xvalidate(
             X_train[:, selected_features], y_train,
             X_val[:, selected_features], y_val)
-        output_sel.append((selected_features, model_sel_output["Accuracy"]))
+        output_sel.append((selected_features, model_sel_output))
 
     return output_sel
