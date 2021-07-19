@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 from protosc.feature_matrix import FeatureMatrix
 
 
@@ -75,3 +76,16 @@ def create_correlated_data(n_base_features=200, n_examples=500,
                     "biases": biases,
                     "clusters": clusters}
     return FeatureMatrix(X), y, ground_truth
+
+
+def slightly_correlated_data(n_features=100, n_examples=500, sigma=1):
+    eigen_vals = np.random.rand(n_features+1)
+    eigen_vals *= len(eigen_vals)/np.sum(eigen_vals)
+    corr_matrix = stats.random_correlation.rvs(eigen_vals)
+    L = np.linalg.cholesky(corr_matrix)
+    X = np.dot(L, np.random.randn(n_features+1, n_examples)).T
+    prob_y = 1/(1+np.exp(-sigma*X[:, -1]))
+    max_accuracy = np.mean(np.abs(prob_y-0.5)+0.5)
+    y = (prob_y > np.random.rand(n_examples)).astype(int)
+    X = X[:, :-1]
+    return FeatureMatrix(X), y, {"max_accuracy": max_accuracy}

@@ -17,6 +17,18 @@ def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
     return accuracy_score(y_val, y_predict)
 
 
+def train_kfold_validate(X, y, features=None):
+    if features is None:
+        features = np.arange(X.shape[1])
+    accuracy = []
+    for cur_fold in X.kfold(y, k=8):
+        X_train, y_train, X_val, y_val = cur_fold
+        new_acc = train_xvalidate(X_train[:, features], y_train,
+                                  X_val[:, features], y_val)
+        accuracy.append(new_acc)
+    return np.mean(accuracy)
+
+
 def calc_chisquare(X_training, y_training):
     """Per feature, calculate chi-square using kruskall-wallis between
     two classes"""
@@ -121,7 +133,7 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
     # Create clusters
     clusters = create_clusters(features_sorted, X)
 
-    # Calculated the cumulative sum of the chi-sqaure vector
+    # Calculated the cumulative sum of the chi-square vector
     cumsum = chisquare_sorted.cumsum()
 
     # Select features needed to reach .25 of standardized cumsum
