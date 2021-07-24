@@ -140,3 +140,160 @@ def fourier_features(img, *args, absolute=True, **kwargs):
     trans = transform_matrix(fft_map.shape, *args, return_inverse=False,
                              **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))
+
+
+class HOGFeatures(BasePipeElement):
+        """Extract HOG feature from an image.
+
+        Arguments
+        ---------
+        orientations: int
+            The number of orientation bins
+        HOG_cellsize: [int,int]
+            The size of the (non-overlapping) cells
+
+        Returns
+        -------
+        HOGs: vector of HOG feature values
+        refGrid_HOG: matrix where each value corresponds to an index in HOGs. 
+        Use this to find where in the image a particular HOG feature value comes from
+        """
+    def __init__(self, orientations=9, HOG_cellsize=[10,10]):
+        self.orientations = orientations
+        self.HOG_cellsize = HOG_cellsize
+
+    def _execute(self, img):
+        return HOG_features(
+            img, orientations=self.orientations, HOG_cellsize=self.HOG_cellsize)
+        
+def HOG_features(img,orientations,HOG_cellsize):
+    from skimage.feature import hog
+    import numpy as np
+    HOGs            = hog(img, orientations, HOG_cellsize,cells_per_block=(1, 1),visualize=False,multichannel=True)
+    refGrid_HOG     = np.zeros([np.int(np.floor(img.shape[0]/HOG_cellsize[0])),np.int(np.floor(img.shape[1]/HOG_cellsize[1])),orientations])
+    c               = 0;    
+    for x in range(0,refGrid_HOG.shape[1]):
+        for y in range(0,refGrid_HOG.shape[0]):
+            for z in range(0,refGrid_HOG.shape[2]):
+                refGrid_HOG[y,x,z] = c
+                c = c+1
+    return HOGs,refGrid_HOG 
+
+class ColorFeatures(BasePipeElement):
+        """Extract Color distribution features from image
+
+        Arguments
+        ---------
+        nsteps: int
+            The number of bins used on the pdf of color values
+
+
+        Returns
+        -------
+        ColorDistributions: vector of color pdf values
+        refGrid: matrix where each value corresponds to an index in ColorDistributions. 
+        Use this to find where in the image a particular feature value comes from
+        """
+    def __init__(self, nsteps=25):
+        self.nsteps = nsteps
+
+    def _execute(self, img):
+        return Color_features(
+            img, nsteps=self.nsteps)
+        
+def Color_features(img,nsteps):
+    import numpy as np
+
+    #preallocate h
+    ColorDistributions = []
+  
+    refGrid = np.zeros([img.shape[2],nsteps])
+    count   = 0    
+    for l in range(0,img.shape[2]):
+        count = count+1
+        ColorDistributions_temp,b   = np.histogram(np.reshape(img[:,:,l],img.shape[0]*img.shape[1]),nsteps,density=True) 
+        ColorDistributions          = np.concatenate((ColorDistributions,ColorDistributions_temp))
+        refGrid[count-1,:]          = np.array(range(nsteps*(count-1),nsteps*(count)))
+    return ColorDistributions, refGrid 
+
+class PixelFeatures(BasePipeElement):
+        """Extract pixel intesity features from image
+
+        Arguments
+        ---------
+        newsize: [int,int]
+            prior to extracting the pixel intensities, the image is converted to this size to reduce the number of features
+
+
+        Returns
+        -------
+        Pixel_Intensities: vector of pixel intensities
+        refGrid: matrix where each value corresponds to an index in Pixel_Intensities. 
+        Use this to find where in the image a particular feature value comes from
+        """
+    def __init__(self, newsize=[25,25]):
+        self.newsize = newsize
+
+    def _execute(self, img):
+        return Pixel_features(
+            img, newsize=self.newsize)
+        
+def Pixel_features(img,newsize):
+    import numpy as np
+    from skimage.transform import resize
+    
+    img = resize(img,newsize)
+    Pixel_Intensities           = np.reshape(img,[1,img.shape[0]*img.shape[1],img.shape[2]])
+    refGrid_Pixel_Intensities   = np.zeros([img.shape[0],img.shape[1],img.shape[2]])
+    
+    c = 0;    
+    for x in range(0,img.shape[1]-1):
+        for y in range(0,img.shape[0]-1):
+            for z in range(0,img.shape[2]-1):
+                refGrid_Pixel_Intensities[y,x,z]=c
+                c = c+1;
+                
+    return Pixel_Intensities,refGrid_Pixel_Intensities                 
+
+class SetColorChannels(BasePipeElement):
+        """Image preprocessing step for color conversion and selecting specific color channels
+        
+
+        Arguments
+        ---------
+        convert2cielab: bol
+            use to convert rgb to cielab (convert2cielab = True/Flase)
+        get_layers: array
+            Select which channels of the image to keep (get_layers= [0,1,2])
+
+        Returns
+        -------
+        img: the adjusted image
+        
+        """
+    def __init__(self, convert2cielab=False,get_layers=[]):
+        self.convert2cielab = convert2cielab
+        self.get_layers = get_layers
+
+    def _execute(self, img):
+        return set_color_channels(
+            img, convert2cielab=self.convert2cielab,get_layers=self.get_layers)
+        
+def set_color_channels(img,convert2cielab,get_layers): 
+    # preprocessing step for images
+    # use to convert rgb to cielab (convert2cielab = True/Flase)
+    # Select which channels of the image to keep (get_layers= [0,1,2])
+    
+    import skimage as sk
+                
+    # Convert RGB to Cie Lab
+    if convert2cielab:
+        img = sk.color.rgb2lab(img)
+    # Check which image layers to include    
+    if get_layers==[]:
+        get_layers = range(0,img.shape[2])
+        
+    newimg = img[:,:,get_layers] 
+    
+    return newimg
+
