@@ -146,7 +146,22 @@ def fourier_features(img, *args, absolute=True, **kwargs):
 
 
 class HOGFeatures(BasePipeElement):
-    def __init__(self, orientations=9, hog_cellsize=[10, 10]):
+        """Extract HOG feature from an image.
+
+        Arguments
+        ---------
+        orientations: int
+            The number of orientation bins
+        HOG_cellsize: [int,int]
+            The size of the (non-overlapping) cells
+
+        Returns
+        -------
+        HOGs: vector of HOG feature values
+        refGrid_HOG: matrix where each value corresponds to an index in HOGs. 
+        Use this to find where in the image a particular HOG feature value comes from
+        """    
+    def __init__(self, orientations = 9, hog_cellsize = [10, 10]):
         self.orientations = orientations
         self.hog_cellsize = hog_cellsize
 
@@ -156,7 +171,7 @@ class HOGFeatures(BasePipeElement):
             hog_cellsize=self.hog_cellsize)
 
 
-def hog_features(img, orientations, hog_cellsize):
+def hog_features(img, orientations = 9, hog_cellsize = [10, 10]):
     # get hog features
     hogs = hog(img, orientations,
                hog_cellsize,
@@ -179,7 +194,21 @@ def hog_features(img, orientations, hog_cellsize):
 
 
 class ColorFeatures(BasePipeElement):
-    def __init__(self, nsteps=25):
+        """Extract Color distribution features from image
+
+        Arguments
+        ---------
+        nsteps: int
+            The number of bins used on the pdf of color values
+
+
+        Returns
+        -------
+        ColorDistributions: vector of color pdf values
+        refGrid: matrix where each value corresponds to an index in ColorDistributions. 
+        Use this to find where in the image a particular feature value comes from
+        """    
+    def __init__(self, nsteps = 25):
         self.nsteps = nsteps
 
     def _execute(self, img):
@@ -187,7 +216,7 @@ class ColorFeatures(BasePipeElement):
             img, nsteps=self.nsteps)
 
 
-def color_features(img, nsteps):
+def color_features(img, nsteps = 25):
     # preallocate color_distributions
     color_distributions = []
     # preallocate reference frame
@@ -208,7 +237,21 @@ def color_features(img, nsteps):
 
 
 class PixelFeatures(BasePipeElement):
-    def __init__(self, newsize=[25, 25]):
+        """Extract pixel intesity features from image
+
+        Arguments
+        ---------
+        newsize: [int,int]
+            prior to extracting the pixel intensities, the image is converted to this size to reduce the number of features
+
+
+        Returns
+        -------
+        Pixel_Intensities: vector of pixel intensities
+        refGrid: matrix where each value corresponds to an index in Pixel_Intensities. 
+        Use this to find where in the image a particular feature value comes from
+        """
+    def __init__(self, newsize = [25, 25]):
         self.newsize = newsize
 
     def _execute(self, img):
@@ -216,9 +259,9 @@ class PixelFeatures(BasePipeElement):
             img, newsize=self.newsize)
 
 
-def pixel_features(img, newsize):
+def pixel_features(img, newsize = [25, 25]):
     img = resize(img, newsize)
-    pixel_intensities =np.reshape(img,
+    pixel_intensities = np.reshape(img,
                                   [1, img.shape[0]*img.shape[1],
                                    img.shape[2]])
     ref_grid_pixel_intensities = np.zeros([img.shape[0],
@@ -234,7 +277,21 @@ def pixel_features(img, newsize):
 
 
 class SetColorChannels(BasePipeElement):
-    def __init__(self, convert2cielab=False, get_layers=[]):
+        """Image preprocessing step for color conversion and selecting specific color channels
+
+        Arguments
+        ---------
+        convert2cielab: bol
+            use to convert rgb to cielab (convert2cielab = True/Flase)
+        get_layers: array
+            Select which channels of the image to keep (get_layers= [0,1,2])
+
+        Returns
+        -------
+        img: the adjusted image
+        
+        """
+    def __init__(self, convert2cielab = False, get_layers = []):
         self.convert2cielab = convert2cielab
         self.get_layers = get_layers
 
@@ -245,14 +302,14 @@ class SetColorChannels(BasePipeElement):
             get_layers=self.get_layers)
 
 
-def set_color_channels(img, convert_to_cielab, get_layers):
+def set_color_channels(img, convert_to_cielab = False, get_layers = []):
     # preprocessing step for images
     # use to convert rgb to cielan (convert2cielab = True/Flase)
     # Select which channels of the image to keep (get_layers= [0,1,2])
     # Convert RGB to Cie Lab
     if convert_to_cielab:
         img = sk.color.rgb2lab(img)
-    # Check which image layers to include    
+    # Check which image layers to include
     if get_layers == []:
         get_layers = range(0, img.shape[2])
     newimg = img[:, :, get_layers]
