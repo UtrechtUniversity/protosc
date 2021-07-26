@@ -185,21 +185,21 @@ class ColorFeatures(BasePipeElement):
     def _execute(self, img):
         return color_features(
             img, nsteps=self.nsteps)
-        
+
+
 def color_features(img, nsteps):
     # preallocate color_distributions
     color_distributions = []
     # preallocate reference frame
     ref_grid = np.zeros([img.shape[2], nsteps])
     count = 0
-    for l in range(0, img.shape[2]):
+    for channel in range(0, img.shape[2]):
         count = count+1
         color_distributions_temp, b = np.histogram(
-            np.reshape(img[:, :, l], img.shape[0]*img.shape[1]),
+            np.reshape(img[:, :, channel], img.shape[0]*img.shape[1]),
             nsteps,
-            density=True) 
-        color_distributions =
-        np.concatenate((color_distributions,
+            density=True)
+        color_distributions = np.concatenate((color_distributions,
                         color_distributions_temp))
         ref_grid[count-1, :] =
         np.array(range(nsteps*(count-1),
@@ -209,14 +209,15 @@ def color_features(img, nsteps):
 
 
 class PixelFeatures(BasePipeElement):
-    def __init__(self, newsize=[25,25]):
+    def __init__(self, newsize=[25, 25]):
         self.newsize = newsize
 
     def _execute(self, img):
         return pixel_features(
             img, newsize=self.newsize)
 
-def pixel_features(img,newsize):    
+
+def pixel_features(img, newsize):
     img = resize(img, newsize)
     pixel_intensities =
     np.reshape(img,
@@ -236,7 +237,7 @@ def pixel_features(img,newsize):
 
 
 class SetColorChannels(BasePipeElement):
-    def __init__(self, convert2cielab=False,get_layers=[]):
+    def __init__(self, convert2cielab=False, get_layers=[]):
         self.convert2cielab = convert2cielab
         self.get_layers = get_layers
 
@@ -246,18 +247,16 @@ class SetColorChannels(BasePipeElement):
             convert2cielab=self.convert2cielab,
             get_layers=self.get_layers)
 
-def set_color_channels(img, convert_to_cielab, get_layers): 
+
+def set_color_channels(img, convert_to_cielab, get_layers):
     # preprocessing step for images
     # use to convert rgb to cielan (convert2cielab = True/Flase)
-    # Select which channels of the image to keep (get_layers= [0,1,2])
-                
+    # Select which channels of the image to keep (get_layers= [0,1,2])           
     # Convert RGB to Cie Lab
     if convert_to_cielab:
         img = sk.color.rgb2lab(img)
     # Check which image layers to include    
     if get_layers==[]:
         get_layers = range(0, img.shape[2])
-        
-    newimg = img[:, :, get_layers] 
-    
+    newimg = img[:, :, get_layers]
     return newimg
