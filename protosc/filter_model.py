@@ -149,11 +149,7 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
             break
         final_selection.extend(cluster)
 
-<<<<<<< HEAD
-    return selected_clusters, clusters
-=======
     return final_selection, clusters
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
 
 def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,

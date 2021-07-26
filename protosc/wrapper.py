@@ -1,10 +1,6 @@
 import numpy as np
-<<<<<<< HEAD
-from protosc.filter_model import fast_chisquare, calc_chisquare, create_clusters, select_fold, train_xvalidate, select_features
-=======
 from protosc.filter_model import train_xvalidate
 from protosc.feature_matrix import FeatureMatrix
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
 
 def calc_accuracy(X, y, selection, n_fold=8):
@@ -20,21 +16,6 @@ def calc_accuracy(X, y, selection, n_fold=8):
     fold_seed = None
     fold_rng = np.random.default_rng(fold_seed)
 
-<<<<<<< HEAD
-    X_folds = np.array_split(X, n_fold)
-    y_folds = np.array_split(y, n_fold)
-
-    for i_val in range(n_fold):
-        accuracy = []
-        X_train, y_train, X_val, y_val = select_fold(X_folds, y_folds, i_val,
-                                                     fold_rng)
-
-        model_sel_output = train_xvalidate(X_train[:, selection],
-                                           y_train,
-                                           X_val[:, selection],
-                                           y_val)
-        accuracy.append(model_sel_output['Accuracy'])
-=======
     for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
         accuracy = []
         X_train, y_train, X_val, y_val = cur_fold
@@ -42,7 +23,6 @@ def calc_accuracy(X, y, selection, n_fold=8):
         accuracy.append(train_xvalidate(
             X_train[:, selection], y_train, X_val[:, selection],
             y_val))
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
     return np.array(accuracy).mean()
 
@@ -63,19 +43,6 @@ def __append_model(clusters, model, selected):
     return model
 
 
-<<<<<<< HEAD
-def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15, stop=4, n_fold=8):
-    """ Determines the cluster of features yielding the highest accuracy scores
-    Args:
-        X: np.array, features
-        y: np.array, categories (1/0)
-        clusters: np.array, clusters of correlating features
-        decrease: boolean, if True clusters are ranked from high to low chi-square scores, if False from low to high
-        add_im: boolean, if True clusters are immediately added to model if they increase the accuracy, if False it only adds the cluster with the highest accuracy increase
-        search_space: float, percentage of clusters that will be used to select clusters from
-        stop: int, max number of rounds where no clusters can be added, after which looping will stop
-        n_fold: int, number of folds (used for calculating accuracy)
-=======
 def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
             stop=4, n_fold=8):
     """ Determines the cluster of features yielding the highest accuracy scores
@@ -100,7 +67,6 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
             after which looping will stop
         n_fold: int
             number of folds (used for calculating accuracy)
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
     Returns:
         model: np.array, selected features yielding the highest accuracy scores
         selected: list, selected cluster indexes
@@ -109,11 +75,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
     selected = []
     model = []
     not_added = 0
-<<<<<<< HEAD
-=======
     if not isinstance(X, FeatureMatrix):
         X = FeatureMatrix(X)
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
     # Define search order
     if decrease:
@@ -132,55 +95,6 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
 
         # If current cluster has already been selected, go to next
         if cluster in selected:
-<<<<<<< HEAD
-            next
-        else:
-            # Select first cluster as model + calculate initial accuracy
-            if isinstance(model, list):
-                model = clusters[cluster]
-                try:
-                    accuracy = calc_accuracy(X, y, model, n_fold)
-                except ValueError:
-                    accuracy = 0
-                selected.append(cluster)
-
-            # Update model with nieuw cluster
-            elif isinstance(model, np.ndarray) and cluster not in selected:
-                model = np.append(model, clusters[cluster])
-            print(f'selected clusters: {selected}')
-
-            # Determine search space
-            rest = [x for x in range(len(clusters))
-                    if x != cluster and x not in selected]
-            rest = rest[:int(len(rest)*search_space)]
-
-            # Look in search space for clusters that increase current accuracy score
-            for i in rest:
-                selection = np.append(model, clusters[i])
-                accuracy_new = calc_accuracy(X, y, selection, n_fold)
-
-                # If accuracy is increased; save cluster and only add highest increase to model
-                if accuracy_new > accuracy:
-                    added += 1
-                    not_added = 0
-                    selected_feature = i
-                    accuracy = accuracy_new
-
-                    # If 'add immediately'; add said cluster to model and
-                    if add_im:
-                        selected.append(i)
-                        model = __append_model(
-                            clusters, model, selected)
-                        print(f'added cluster {i}, new accuracy = {accuracy}')
-                        print(f'selected clusters: {selected}')
-
-            # Add cluster resulting in highest increase to model
-            if add_im == False and added > 0:
-                selected.append(selected_feature)
-                model = __append_model(clusters, model, selected)
-                print(
-                    f'added cluster {selected_feature}, new accuracy = {accuracy}')
-=======
             continue
 
         # Select first cluster as model + calculate initial accuracy
@@ -230,7 +144,6 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
             model = __append_model(clusters, model, selected)
             print(
                 f'added cluster {selected_feature}, new accuracy = {accuracy}')
->>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
             # If no clusters were added; increase 'not_added' stopping value
             if added == 0:
