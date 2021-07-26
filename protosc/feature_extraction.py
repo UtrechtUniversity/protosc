@@ -152,22 +152,30 @@ class HOGFeatures(BasePipeElement):
 
     def _execute(self, img):
         return hog_features(
-            img, orientations=self.orientations, 
+            img, orientations=self.orientations,
             hog_cellsize=self.hog_cellsize)
-    
+
+
 def hog_features(img, orientations, hog_cellsize):
-    #get hog features
-    hogs = hog(img, orientations, hog_cellsize, cells_per_block=(1, 1), visualize=False, multichannel=True)
-    #preallocate hog reference frame
-    ref_grid_hog = np.zeros([np.int(np.floor(img.shape[0]/hog_cellsize[0])), np.int(np.floor(img.shape[1]/hog_cellsize[1])), orientations])
-    c = 0;    
+    # get hog features
+    hogs = hog(img, orientations,
+               hog_cellsize,
+               cells_per_block=(1, 1),
+               visualize=False,
+               multichannel=True)
+    # preallocate hog reference frame
+    ref_grid_hog = np.zeros(
+        [np.int(np.floor(img.shape[0]/hog_cellsize[0])),
+         np.int(np.floor(img.shape[1]/hog_cellsize[1])),
+         orientations])
+    c = 0
     for x in range(0, ref_grid_hog.shape[1]):
         for y in range(0, ref_grid_hog.shape[0]):
             for z in range(0, ref_grid_hog.shape[2]):
                 ref_grid_hog[y, x, z] = c
                 c = c+1
-                
-    return hogs, ref_grid_hog 
+
+    return hogs, ref_grid_hog
 
 
 class ColorFeatures(BasePipeElement):
@@ -179,18 +187,25 @@ class ColorFeatures(BasePipeElement):
             img, nsteps=self.nsteps)
         
 def color_features(img, nsteps):
-    #preallocate color_distributions
+    # preallocate color_distributions
     color_distributions = []
-    #preallocate reference frame
+    # preallocate reference frame
     ref_grid = np.zeros([img.shape[2], nsteps])
-    count = 0    
+    count = 0
     for l in range(0, img.shape[2]):
         count = count+1
-        color_distributions_temp, b = np.histogram(np.reshape(img[:, :, l], img.shape[0]*img.shape[1]), nsteps, density=True) 
-        color_distributions = np.concatenate((color_distributions,color_distributions_temp))
-        ref_grid[count-1, :] = np.array(range(nsteps*(count-1), nsteps*(count)))
-        
-    return color_distributions, ref_grid 
+        color_distributions_temp, b = np.histogram(
+            np.reshape(img[:, :, l], img.shape[0]*img.shape[1]),
+            nsteps,
+            density=True) 
+        color_distributions =
+        np.concatenate((color_distributions,
+                        color_distributions_temp))
+        ref_grid[count-1, :] =
+        np.array(range(nsteps*(count-1),
+                       nsteps*(count)))
+
+    return color_distributions, ref_grid
 
 
 class PixelFeatures(BasePipeElement):
@@ -200,20 +215,24 @@ class PixelFeatures(BasePipeElement):
     def _execute(self, img):
         return pixel_features(
             img, newsize=self.newsize)
-        
+
 def pixel_features(img,newsize):    
     img = resize(img, newsize)
-    pixel_intensities = np.reshape(img,[1, img.shape[0]*img.shape[1], img.shape[2]])
-    ref_grid_pixel_intensities = np.zeros([img.shape[0], img.shape[1], img.shape[2]])
-    
-    c = 0;    
+    pixel_intensities =
+    np.reshape(img,
+               [1, img.shape[0]*img.shape[1],
+                img.shape[2]])
+    ref_grid_pixel_intensities =
+    np.zeros([img.shape[0],
+              img.shape[1],
+              img.shape[2]])
+    c = 0
     for x in range(0, img.shape[1]-1):
         for y in range(0, img.shape[0]-1):
             for z in range(0, img.shape[2]-1):
                 ref_grid_pixel_intensities[y, x, z] = c
-                c = c+1;
-                
-    return pixel_intensities, ref_grid_pixel_intensities                 
+                c = c+1
+    return pixel_intensities, ref_grid_pixel_intensities
 
 
 class SetColorChannels(BasePipeElement):
@@ -223,8 +242,10 @@ class SetColorChannels(BasePipeElement):
 
     def _execute(self, img):
         return set_color_channels(
-            img, convert2cielab=self.convert2cielab, get_layers=self.get_layers)
-        
+            img,
+            convert2cielab=self.convert2cielab,
+            get_layers=self.get_layers)
+
 def set_color_channels(img, convert_to_cielab, get_layers): 
     # preprocessing step for images
     # use to convert rgb to cielan (convert2cielab = True/Flase)
