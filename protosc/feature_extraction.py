@@ -159,9 +159,9 @@ class HOGFeatures(BasePipeElement):
     -------
     HOGs: vector of HOG feature values
     refGrid_HOG: matrix where each value corresponds to an index in HOGs.
-    Use this to find where in the image a particular HOG feature 
+    Use this to find where in the image a particular HOG feature
     value comes from
-    """    
+    """
     def __init__(self, orientations=9, hog_cellsize=[10, 10]):
         self.orientations = orientations
         self.hog_cellsize = hog_cellsize
@@ -207,7 +207,7 @@ class ColorFeatures(BasePipeElement):
     index in ColorDistributions.
     Use this to find where in the image a particular
     feature value comes from
-    """    
+    """
     def __init__(self, nsteps=25):
         self.nsteps = nsteps
 
@@ -241,7 +241,7 @@ class PixelFeatures(BasePipeElement):
     Arguments
     ---------
     newsize: [int,int]
-       prior to extracting the pixel intensities, 
+       prior to extracting the pixel intensities,
        the image is converted to this size to reduce the
        number of features
     Returns
@@ -263,8 +263,8 @@ class PixelFeatures(BasePipeElement):
 def pixel_features(img, newsize=[25, 25]):
     img = resize(img, newsize)
     pixel_intensities = np.reshape(img,
-                                  [1, img.shape[0]*img.shape[1],
-                                   img.shape[2]])
+                                   [1, img.shape[0]*img.shape[1],
+                                    img.shape[2]])
     ref_grid_pixel_intensities = np.zeros([img.shape[0],
                                            img.shape[1],
                                            img.shape[2]])
