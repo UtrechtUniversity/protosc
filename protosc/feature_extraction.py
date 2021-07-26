@@ -6,6 +6,7 @@ import skimage as sk
 from skimage.feature import hog
 from skimage.transform import resize
 
+
 class FourierFeatures(BasePipeElement):
     def __init__(self, n_angular=8, n_spatial=7, cut_circle=True,
                  absolute=True):
@@ -143,6 +144,7 @@ def fourier_features(img, *args, absolute=True, **kwargs):
                              **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))
 
+
 class HOGFeatures(BasePipeElement):
     def __init__(self, orientations=9, hog_cellsize=[10, 10]):
         self.orientations = orientations
@@ -150,21 +152,23 @@ class HOGFeatures(BasePipeElement):
 
     def _execute(self, img):
         return hog_features(
-            img, orientations=self.orientations, hog_cellsize=self.hog_cellsize)
-        
+            img, orientations=self.orientations, 
+            hog_cellsize=self.hog_cellsize)
+    
 def hog_features(img, orientations, hog_cellsize):
     #get hog features
-    hogs = hog(img, orientations, hog_cellsize,cells_per_block=(1, 1),visualize=False,multichannel=True)
+    hogs = hog(img, orientations, hog_cellsize, cells_per_block=(1, 1), visualize=False, multichannel=True)
     #preallocate hog reference frame
-    refGrid_hog = np.zeros([np.int(np.floor(img.shape[0]/hog_cellsize[0])), np.int(np.floor(img.shape[1]/hog_cellsize[1])), orientations])
+    ref_grid_hog = np.zeros([np.int(np.floor(img.shape[0]/hog_cellsize[0])), np.int(np.floor(img.shape[1]/hog_cellsize[1])), orientations])
     c = 0;    
-    for x in range(0, refGrid_hog.shape[1]):
-        for y in range(0, refGrid_hog.shape[0]):
-            for z in range(0, refGrid_hog.shape[2]):
-                refGrid_hog[y, x, z] = c
+    for x in range(0, ref_grid_hog.shape[1]):
+        for y in range(0, ref_grid_hog.shape[0]):
+            for z in range(0, ref_grid_hog.shape[2]):
+                ref_grid_hog[y, x, z] = c
                 c = c+1
                 
-    return hogs, refGrid_hog 
+    return hogs, ref_grid_hog 
+
 
 class ColorFeatures(BasePipeElement):
     def __init__(self, nsteps=25):
@@ -188,6 +192,7 @@ def color_features(img, nsteps):
         
     return color_distributions, ref_grid 
 
+
 class PixelFeatures(BasePipeElement):
     def __init__(self, newsize=[25,25]):
         self.newsize = newsize
@@ -209,6 +214,7 @@ def pixel_features(img,newsize):
                 c = c+1;
                 
     return pixel_intensities, ref_grid_pixel_intensities                 
+
 
 class SetColorChannels(BasePipeElement):
     def __init__(self, convert2cielab=False,get_layers=[]):
