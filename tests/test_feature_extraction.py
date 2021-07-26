@@ -1,8 +1,30 @@
 import numpy as np
-
 from protosc.feature_extraction import transform_matrix
+# from protosc.feature_extraction import hog_features
 import pytest
 
+
+# def test_hog_features(orientations, hog_cellsize)
+#     test_img = np.random.rand(200, 200, 3)
+#     # get hog features
+#     hogs = hog(img, orientations,
+#                hog_cellsize,
+#                cells_per_block=(1, 1),
+#                visualize=False,
+#                multichannel=True)
+#     # preallocate hog reference frame
+#     ref_grid_hog = np.zeros(
+#         [np.int(np.floor(img.shape[0]/hog_cellsize[0])),
+#          np.int(np.floor(img.shape[1]/hog_cellsize[1])),
+#          orientations])
+#     c = 0
+#     for x in range(0, ref_grid_hog.shape[1]):
+#         for y in range(0, ref_grid_hog.shape[0]):
+#             for z in range(0, ref_grid_hog.shape[2]):
+#                 ref_grid_hog[y, x, z] = c
+#                 c = c+1
+
+#     return hogs, ref_grid_hog
 
 @pytest.mark.parametrize('shape', [(21, 31), (22, 22), (30, 21)])
 @pytest.mark.parametrize('cut_circle', [True, False])
