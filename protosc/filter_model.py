@@ -22,18 +22,31 @@ def calc_chisquare(X_training, y_training):
     two classes"""
 
     X_chisquare = []
+    y_split = []
+    cats = np.unique(y_training)
+    for i_cat in cats:
+        y_split.append(y_training == i_cat)
 
     # Estimate difference between classes per feature
     for feature in range(X_training.shape[1]):
         x = X_training[:, feature]
-        x1 = x[y_training == 0]
-        x2 = x[y_training == 1]
+#         x1 = x[y_training == 0]
+#         x2 = x[y_training == 1]
         if len(x.shape) > 1:
-            new_chisquare = np.max([
-                stats.kruskal(x1[:, i], x2[:, i]) for i in range(x.shape[1])
-            ])
+            kruskal_res = []
+            for i_sub_feature in range(x.shape[1]):
+                comp_vecs = [x[y_split[i_cat], i_sub_feature]
+                             for i_cat in range(len(cats))]
+                kruskal_res.append(
+                    stats.kruskal(*comp_vecs)
+                )
+            new_chisquare = np.max(kruskal_res)
+#             new_chisquare = np.max([
+#                 stats.kruskal(x1[:, i], x2[:, i]) for i in range(x.shape[1])
+#             ])
         else:
-            new_chisquare = stats.kruskal(x1, x2).statistic
+            comp_vecs = [x[y_split[i_cat]] for i_cat in range(len(cats))]
+            new_chisquare = stats.kruskal(*comp_vecs).statistic
         X_chisquare.append(new_chisquare)
 
     X_chisquare = np.array(X_chisquare)
@@ -130,13 +143,17 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
         cumsum/cumsum[-1] >= chisq_threshold)+1]
 
     # Select clusters with n features
-    selected_clusters = []
+    final_selection = []
     for cluster in clusters:
-        if len(selected_clusters) > len(selected_features):
+        if len(final_selection) > len(selected_features):
             break
-        selected_clusters.extend(cluster)
+        final_selection.extend(cluster)
 
+<<<<<<< HEAD
     return selected_clusters, clusters
+=======
+    return final_selection, clusters
+>>>>>>> 44fb13977641d11dced730d64d264fc400be7257
 
 
 def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
@@ -163,7 +180,7 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
         if null_distribution:
             np.random.shuffle(y_train)
 
-        selected_features = select_features(X_train, y_train)
+        selected_features, _ = select_features(X_train, y_train)
 
         # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
         # 'sigmoid') using only selected features
