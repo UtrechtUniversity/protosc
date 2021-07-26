@@ -200,10 +200,9 @@ def color_features(img, nsteps):
             nsteps,
             density=True)
         color_distributions = np.concatenate((color_distributions,
-                        color_distributions_temp))
-        ref_grid[count-1, :] =
-        np.array(range(nsteps*(count-1),
-                       nsteps*(count)))
+                                              color_distributions_temp))
+        ref_grid[count-1, :] = np.array(range(nsteps*(count-1),
+                                              nsteps*(count)))
 
     return color_distributions, ref_grid
 
@@ -219,14 +218,12 @@ class PixelFeatures(BasePipeElement):
 
 def pixel_features(img, newsize):
     img = resize(img, newsize)
-    pixel_intensities =
-    np.reshape(img,
-               [1, img.shape[0]*img.shape[1],
-                img.shape[2]])
-    ref_grid_pixel_intensities =
-    np.zeros([img.shape[0],
-              img.shape[1],
-              img.shape[2]])
+    pixel_intensities =np.reshape(img,
+                                  [1, img.shape[0]*img.shape[1],
+                                   img.shape[2]])
+    ref_grid_pixel_intensities = np.zeros([img.shape[0],
+                                           img.shape[1],
+                                           img.shape[2]])
     c = 0
     for x in range(0, img.shape[1]-1):
         for y in range(0, img.shape[0]-1):
@@ -251,12 +248,12 @@ class SetColorChannels(BasePipeElement):
 def set_color_channels(img, convert_to_cielab, get_layers):
     # preprocessing step for images
     # use to convert rgb to cielan (convert2cielab = True/Flase)
-    # Select which channels of the image to keep (get_layers= [0,1,2])           
+    # Select which channels of the image to keep (get_layers= [0,1,2])
     # Convert RGB to Cie Lab
     if convert_to_cielab:
         img = sk.color.rgb2lab(img)
     # Check which image layers to include    
-    if get_layers==[]:
+    if get_layers == []:
         get_layers = range(0, img.shape[2])
     newimg = img[:, :, get_layers]
     return newimg
