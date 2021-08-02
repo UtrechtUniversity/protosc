@@ -29,14 +29,14 @@ def test_color_features(nchannels, nsteps):
     test_img = np.random.rand(200, 200, nchannels)
     color_distributions, ref_grid = color_features(test_img, nsteps)
 
-    assert color_distributions.shape[0] = nsteps*nchannels
+    assert color_distributions.shape[0] == nsteps*nchannels
     assert ref_grid.shape == (nchannels, nsteps)
 
 def test_pixel_features(nchannels, newsize):
     test_img = np.random.rand(200, 200, nchannels)
     pixel_intensities, ref_grid = pixel_features(test_img,newsize)
 
-    assert pixel_intensities.shape = (1, newsize[0]*newsize[1], nchannels)
+    assert pixel_intensities.shape == (1, newsize[0]*newsize[1], nchannels)
     assert ref_grid.shape == (newsize[0], newsize[1], nchannels)
 
 # deze wil nog niet helemaal lukken. Twijfel of de functie ok is. newimg zijn tuples... ff uitzoeken of dat wel de bedoeling is.
