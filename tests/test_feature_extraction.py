@@ -1,23 +1,14 @@
 import numpy as np
 from protosc.feature_extraction import transform_matrix
 from protosc.feature_extraction import hog_features
+from protosc.feature_extraction import color_features
+from protosc.feature_extraction import pixel_features
+from protosc.feature_extraction import set_color_channels
 import pytest
 
 # for test_hog_features:
 @pytest.mark.parametrize('orientations', [9, 8, 7])
 @pytest.mark.parametrize('hog_cellsize', [[10, 10],[5, 5]])
-# for test_color_features, test_pixel_features
-@pytest.mark.parametrize('nchannels', [1, 2, 3])
-# for test_color_features
-@pytest.mark.parametrize('nsteps', [25, 10, 50])
-# test_pixel_features
-@pytest.mark.parametrize('newsize', [[25, 25], [50, 50]])
-# for test_transform_matrix
-@pytest.mark.parametrize('shape', [(21, 31), (22, 22), (30, 21)])
-@pytest.mark.parametrize('cut_circle', [True, False])
-@pytest.mark.parametrize('n_angular', [5, 8])
-@pytest.mark.parametrize('n_spatial', [6, 7])
-
 def test_hog_features(orientations, hog_cellsize):
     test_img = np.random.rand(200, 200, 3)
     hogs, ref_grid_hog = hog_features(test_img, orientations, hog_cellsize)
@@ -25,6 +16,10 @@ def test_hog_features(orientations, hog_cellsize):
     assert hogs.shape[0] == (test_img.shape[0]/hog_cellsize[0])*(test_img.shape[1]/hog_cellsize[1])*orientations
     assert ref_grid_hog.shape == (test_img.shape[0]/hog_cellsize[0], test_img.shape[1]/hog_cellsize[1], orientations)
 
+# for test_color_features, test_pixel_features
+@pytest.mark.parametrize('nchannels', [1, 2, 3])
+# for test_color_features
+@pytest.mark.parametrize('nsteps', [25, 10, 50])
 def test_color_features(nchannels, nsteps):
     test_img = np.random.rand(200, 200, nchannels)
     color_distributions, ref_grid = color_features(test_img, nsteps)
@@ -32,6 +27,10 @@ def test_color_features(nchannels, nsteps):
     assert color_distributions.shape[0] == nsteps*nchannels
     assert ref_grid.shape == (nchannels, nsteps)
 
+# for test_color_features, test_pixel_features
+@pytest.mark.parametrize('nchannels', [1, 2, 3])
+# test_pixel_features
+@pytest.mark.parametrize('newsize', [[25, 25], [50, 50]])
 def test_pixel_features(nchannels, newsize):
     test_img = np.random.rand(200, 200, nchannels)
     pixel_intensities, ref_grid = pixel_features(test_img,newsize)
@@ -49,7 +48,12 @@ def test_set_color_channels(convert_to_cielab, get_layers):
     if convert_to_cielab == False:
         if get_layers == []:
             assert test_img == newimg
-        
+
+# for test_transform_matrix
+@pytest.mark.parametrize('shape', [(21, 31), (22, 22), (30, 21)])
+@pytest.mark.parametrize('cut_circle', [True, False])
+@pytest.mark.parametrize('n_angular', [5, 8])
+@pytest.mark.parametrize('n_spatial', [6, 7])        
 def test_transform_matrix(shape, cut_circle, n_angular, n_spatial):
     size = shape[0]*shape[1]
     n_parts = n_angular*n_spatial
