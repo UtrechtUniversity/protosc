@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 
 class FeatureMatrix():
@@ -43,6 +44,24 @@ class FeatureMatrix():
     @classmethod
     def from_matrix(cls, X):
         return cls(X)
+
+    def copy(self):
+        X_copy = self.X.copy()
+        table_copy = deepcopy(self.rev_lookup_table)
+        return self.__class__(X_copy, rev_lookup_table=table_copy)
+
+    def add_random_columns(self, n):
+        shape = (self.shape[0], n)
+        added_X = np.random.randn(*shape)
+        old_columns = self.X.shape[1]
+        old_features = self.shape[1]
+        self.X = np.hstack((self.X, added_X))
+        for i in range(n):
+            self.rev_lookup_table.append({
+                "pipeline": "random",
+                "sub_feature_id": old_features+i,
+                "col_ids": [old_columns+i],
+            })
 
     def __getitem__(self, key):
         return self.get_slice(key)

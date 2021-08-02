@@ -79,7 +79,7 @@ def create_correlated_data(n_base_features=200, n_examples=500,
 
 
 def slightly_correlated_data(n_features=100, n_examples=500, sigma=1):
-    eigen_vals = np.random.rand(n_features+1)
+    eigen_vals = 0.9*np.random.rand(n_features+1)+0.1
     eigen_vals *= len(eigen_vals)/np.sum(eigen_vals)
     corr_matrix = stats.random_correlation.rvs(eigen_vals)
     L = np.linalg.cholesky(corr_matrix)
