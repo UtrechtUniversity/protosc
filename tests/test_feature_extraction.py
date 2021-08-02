@@ -23,7 +23,7 @@ def test_hog_features(orientations, hog_cellsize):
     hogs, ref_grid_hog = hog_features(test_img, orientations, hog_cellsize)
 
     assert hogs.shape[0] == (test_img.shape[0]/hog_cellsize[0])*(test_img.shape[1]/hog_cellsize[1])*orientations
-    assert ref_grid_hog.shape == (test_img.shape[0]/hog_cellsize[0]), (test_img.shape[1]/hog_cellsize[1]), orientations)
+    assert ref_grid_hog.shape == (test_img.shape[0]/hog_cellsize[0], test_img.shape[1]/hog_cellsize[1], orientations)
 
 def test_color_features(nchannels, nsteps):
     test_img = np.random.rand(200, 200, nchannels)
