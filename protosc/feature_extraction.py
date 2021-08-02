@@ -282,7 +282,7 @@ class SetColorChannels(BasePipeElement):
     conversion and selecting specific color channels
     Arguments
     ---------
-    convert2cielab: bol
+    convert2cielab: bool
        use to convert rgb to cielab (convert2cielab = True/Flase)
     get_layers: array
        Select which channels of the image to keep (get_layers= [0,1,2])
