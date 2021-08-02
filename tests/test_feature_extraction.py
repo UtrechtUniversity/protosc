@@ -43,7 +43,7 @@ def test_pixel_features(nchannels, newsize):
 @pytest.mark.parametrize('get_layers', [[], [0], [1], [2], [0, 1], [0, 2], [1, 2]])
 def test_set_color_channels(convert_to_cielab, get_layers):
     test_img = np.random.rand(200, 200, 3)
-    newimg = set_color_channels(img, convert_to_cielab, get_layers)
+    newimg = set_color_channels(test_img, convert_to_cielab, get_layers)
 
     if convert_to_cielab == False:
         if get_layers == []:
