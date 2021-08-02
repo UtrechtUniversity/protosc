@@ -41,7 +41,7 @@ def test_pixel_features(nchannels, newsize):
 
 # deze wil nog niet helemaal lukken. Twijfel of de functie ok is. newimg zijn tuples... ff uitzoeken of dat wel de bedoeling is.
 @pytest.mark.parametrize('convert_to_cielab', [True, False])
-@pytest.mark.parametrize('get_layers', [[], [0], [1], [2], ,[0, 1], [0, 2], [1, 2]])
+@pytest.mark.parametrize('get_layers', [[], [0], [1], [2], [0, 1], [0, 2], [1, 2]])
 def test_set_color_channels(convert_to_cielab, get_layers):
     test_img = np.random.rand(200, 200, 3)
     newimg = set_color_channels(img, convert_to_cielab, get_layers)
