@@ -6,12 +6,17 @@ from protosc.feature_matrix import FeatureMatrix
 def calc_accuracy(X, y, selection, n_fold=8):
     """ Calculates the average accuracy score of the selected features over n_folds
     Args:
-        X: np.array, features
-        y: np.array, categories (1/0)
-        selection: np.array, selected features
-        n_fold: int, number of folds
+        X: np.array, 
+            features
+        y: np.array, 
+            categories (1/0)
+        selection: np.array, 
+            selected features
+        n_fold: int, 
+            number of folds
     Returns:
-        accuracy: float, average accuracy over n_folds
+        accuracy: float, 
+            average accuracy over n_folds
     """
     fold_seed = None
     fold_rng = np.random.default_rng(fold_seed)
@@ -23,18 +28,19 @@ def calc_accuracy(X, y, selection, n_fold=8):
         accuracy.append(train_xvalidate(
             X_train[:, selection], y_train, X_val[:, selection],
             y_val))
-
     return np.array(accuracy).mean()
 
 
-def __append_model(clusters, model, selected):
+def __append_model(clusters, selected):
     """ Updates model
     Args:
-        clusters: np.array, all clusters of correlating features
-        model: np.array, currently selected features
-        selected: list, indexes of clusters that increase accuracy
+        clusters: np.array, 
+            all clusters of correlating features
+        selected: list, 
+            indexes of clusters that increase accuracy
     Returns:
-        model: np.array, updated selection of features
+        model: np.array, 
+            updated selection of features
     """
     try:
         model = clusters[selected]
@@ -43,8 +49,40 @@ def __append_model(clusters, model, selected):
     return model
 
 
-def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
-            stop=4, n_fold=8):
+def __exclude(X, y, clusters, selected, accuracy, n_fold):
+    """ Tries to increase accuracy of selected model by removing clusters
+    Args:
+        X: np.array, FeatureMatrix
+            Feature matrix to wrap.
+        y: np.array
+            Outcomes, categorical.
+        clusters: np.array
+            clusters of correlating features.
+        n_fold: int
+            number of folds (used for calculating accuracy)
+        selected: list, selected cluster indexes
+        accuracy: float, highest yielded accuracy
+    Returns:
+        if removal increased accuract: function returns updated selected, accuracy variables
+    """
+    print("Trying to increase accuracy by removing clusters...")
+    exclude = []
+    for i in selected:
+        rest = [x for x in selected if x != i and x not in exclude]
+        selection = np.concatenate(np.array(clusters)[rest])
+        accuracy_new = calc_accuracy(X, y, selection, n_fold)
+        if accuracy_new > accuracy:
+            accuracy = accuracy_new
+            exclude.append(i)
+            print(
+                f'Removed clusters {i}. Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
+    if exclude:
+        selected = [x for x in selected if x not in exclude]
+        return selected, accuracy_new
+
+
+def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_space=0.15,
+            stop=4, n_fold=8, n=1):
     """ Determines the cluster of features yielding the highest accuracy scores
     Args:
         X: np.array, FeatureMatrix
@@ -60,6 +98,9 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
             if True clusters are immediately added to model if they increase
             the accuracy, if False it only adds the cluster with the highest
             accuracy increase.
+        excl: boolean
+            if True clusters are removed from the final model one by one to
+            see if accuracy increases, if False this step is skipped.
         search_space: float
             percentage of clusters that will be used to select clusters from.
         stop: int
@@ -67,86 +108,104 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, search_space=0.15,
             after which looping will stop
         n_fold: int
             number of folds (used for calculating accuracy)
+        n: int, 
+            number of times you want to run the code
     Returns:
-        model: np.array, selected features yielding the highest accuracy scores
-        selected: list, selected cluster indexes
-        accuracy: float, highest yielded accuracy
+        output: dictionary, 
+            Contains:
+            model: np.array, selected features yielding the highest accuracy scores
+            selected: list, selected cluster indexes
+            accuracy: float, highest yielded accuracy
     """
-    selected = []
-    model = []
-    not_added = 0
-    if not isinstance(X, FeatureMatrix):
-        X = FeatureMatrix(X)
+    # Define final output variable
+    output = {'model': [], 'clusters': [], 'accuracy': []}
 
-    # Define search order
-    if decrease:
-        cluster_order = range(len(clusters))
-    else:
-        cluster_order = reversed(range(len(clusters)))
+    # Repeat code n times
+    for rounds in range(n):
+        if n > 1:
+            print(f'-- Round {rounds+1} of {n} --')
 
-    # Find clusters that increase accuracy
-    for cluster in cluster_order:
+        # Define output variables
+        selected = []
+        model = []
+        not_added = 0
+        if not isinstance(X, FeatureMatrix):
+            X = FeatureMatrix(X)
 
-        # If there were no features added in n rounds, stop searching
-        added = 0
-        if not_added == stop:
-            print(f"No features were added in {stop} rounds. Stop searching.")
-            break
+        # Define search order
+        if decrease:
+            cluster_order = range(len(clusters))
+        else:
+            cluster_order = reversed(range(len(clusters)))
 
-        # If current cluster has already been selected, go to next
-        if cluster in selected:
-            continue
+        # Find clusters that increase accuracy
+        for cluster in cluster_order:
+            # If there were no features added in n rounds, stop searching
+            added = 0
+            if not_added == stop:
+                print(
+                    f"No features were added in {stop} rounds. Stop searching for new clusters.")
+                break
 
-        # Select first cluster as model + calculate initial accuracy
-        if isinstance(model, list):
-            model = clusters[cluster]
-            try:
-                accuracy = calc_accuracy(X, y, model, n_fold)
-            except ValueError:
+            # If current cluster has already been selected, go to next
+            if cluster in selected:
+                continue
+
+            # Set initial accuracy
+            if isinstance(model, list):
                 accuracy = 0
-            selected.append(cluster)
 
-        # Update model with nieuw cluster
-        elif isinstance(model, np.ndarray) and cluster not in selected:
-            model = np.append(model, clusters[cluster])
-        print(f'selected clusters: {selected}')
+            # Determine search space
+            rest = [x for x in range(len(clusters))
+                    if x not in selected]
+            rest = rest[:int(len(rest)*search_space)]
 
-        # Determine search space
-        rest = [x for x in range(len(clusters))
-                if x != cluster and x not in selected]
-        rest = rest[:int(len(rest)*search_space)]
+            # Look in search space for clusters that increase accuracy
+            for i in rest:
+                if isinstance(model, list):
+                    selection = clusters[i]
+                else:
+                    selection = np.append(model, clusters[i])
+                accuracy_new = calc_accuracy(X, y, selection, n_fold)
 
-        # Look in search space for clusters that increase current accuracy
-        # score
-        for i in rest:
-            selection = np.append(model, clusters[i])
-            accuracy_new = calc_accuracy(X, y, selection, n_fold)
+                # If accuracy is increased; update accuracy and save cluster
+                if accuracy_new > accuracy:
+                    added += 1
+                    not_added = 0
+                    selected_feature = i
+                    accuracy = accuracy_new
 
-            # If accuracy is increased; save cluster and only add highest
-            # increase to model
-            if accuracy_new > accuracy:
-                added += 1
-                not_added = 0
-                selected_feature = i
-                accuracy = accuracy_new
+                    # If 'add immediately'; add said cluster to model immediately
+                    # Continue with this model for adding new clusters
+                    if add_im:
+                        selected.append(i)
+                        model = __append_model(clusters, selected)
+                        print(f'added cluster {i}, new accuracy = {accuracy}')
 
-                # If 'add immediately'; add said cluster to model and
-                if add_im:
-                    selected.append(i)
-                    model = __append_model(
-                        clusters, model, selected)
-                    print(f'added cluster {i}, new accuracy = {accuracy}')
-                    print(f'selected clusters: {selected}')
-
-        # Add cluster resulting in highest increase to model
-        if add_im is False and added > 0:
-            selected.append(selected_feature)
-            model = __append_model(clusters, model, selected)
-            print(
-                f'added cluster {selected_feature}, new accuracy = {accuracy}')
+            # Only add cluster resulting in highest increase to model
+            if add_im is False and added > 0:
+                selected.append(selected_feature)
+                model = __append_model(clusters, selected)
+                print(
+                    f'added cluster {selected_feature}, new accuracy = {accuracy}')
 
             # If no clusters were added; increase 'not_added' stopping value
             if added == 0:
+                print('nothing added')
                 not_added += 1
 
-    return model, selected, accuracy
+        # Remove clusters
+        if excl and len(selected) > 1:
+            try:
+                selected, accuracy = __exclude(
+                    X, y, clusters, selected, accuracy, n_fold)
+                model = np.array(clusters)[selected]
+            except TypeError:
+                print("Removal of clusters did not increase accuracy.")
+
+        # Add output per run to output dictionary
+        output['model'].append(model)
+        output['clusters'].append(selected)
+        output['accuracy'].append(accuracy)
+
+    return output
