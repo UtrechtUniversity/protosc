@@ -16,6 +16,6 @@ setup(
         'pandas',
         'sklearn',
         'scipy',
-        'tmqd',
+        'tqdm',
     ]
 )
