@@ -186,7 +186,7 @@ class Chromosome():
 
 class Population():
     def __init__(self, X, y, n_chromo=100, mutation_rate=0.01, k_tournament=5,
-                 num_penalty=0.005):
+                 num_penalty=0.005, n_jobs=-1):
         """Population of chromosome for feature selection procedures.
 
         Arguments

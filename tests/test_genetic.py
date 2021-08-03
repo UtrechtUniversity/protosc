@@ -1,9 +1,11 @@
-from protosc.genetic_algorithm import Chromosome
+from protosc.genetic_algorithm import Chromosome, compute_significant_features
 
 from pytest import mark
 from protosc.simulation import create_simulation_data
 from copy import deepcopy
-
+from protosc.genetic_algorithm import genetic_algorithm
+from protosc.genetic_algorithm import compute_coefs
+import numpy as np
 
 @mark.parametrize(
     "n_examples,n_features", [
@@ -45,3 +47,30 @@ def test_chromosome(n_examples, n_features):
             if len(chrom) != len(old_features):
                 break
             assert i < 999
+
+
+@mark.parametrize(
+    "n_examples,n_features,njobs", [
+        (200, 20, 1),
+        (40, 2, -1),
+        (139, 5, 2),
+        (200, 7, 4)
+    ]
+)
+def test_ga(n_examples, n_features, njobs):
+    n_true_features = n_features // 2
+    X, y, _ = create_simulation_data(
+        n_examples=n_examples, n_features=n_features,
+        n_true_features=n_true_features)
+
+    X_gen, y_gen = genetic_algorithm(X, y, n_jobs=1, n_random=100)
+    print(X_gen.shape)
+    assert X_gen.shape[1] == n_features + 100
+    assert y_gen.size == X_gen.shape[0]
+
+    coefs = compute_coefs(X_gen, y_gen, n_random=100)
+    assert len(coefs) == n_features + 100
+    features = compute_significant_features(coefs, n_random=100,
+                                            sign_criterion=n_features//2)
+    assert isinstance(features, np.ndarray)
+    assert np.all(features < n_features)
