@@ -115,13 +115,14 @@ class Chromosome():
                                   size=(len(chrom_2_uniq)+1)//2, replace=False)
         if isinstance(select, int):
             select = [select]
+
         chrom_3_features = chrom_3_features | set(select)
         chrom_4_features = chrom_4_features | (chrom_2.features
                                                - chrom_3_features)
 
         # Return the two children.
         return (cls(chrom_1.n_tot_features, chrom_3_features),
-                cls(chrom_1.n_tot_features, chrom_3_features))
+                cls(chrom_1.n_tot_features, chrom_4_features))
 
     def mutate(self, rate=0.05):
         """Perform a set of mutations depending on the chromosome.
@@ -174,6 +175,7 @@ class Chromosome():
         n_remove = len(self.features)//3
         if n_remove <= 1:
             self.mutate_remove()
+            return
         rem_id = np.random.choice(list(self.features),
                                   size=n_remove, replace=False)
         self.features = self.features - set(rem_id)
