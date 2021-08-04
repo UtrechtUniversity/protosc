@@ -2,6 +2,9 @@ from protosc.pipeline import BasePipeElement
 import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.sparse import csr_matrix
+import skimage as sk
+from skimage.feature import hog
+from skimage.transform import resize
 
 
 class FourierFeatures(BasePipeElement):
@@ -140,3 +143,173 @@ def fourier_features(img, *args, absolute=True, **kwargs):
     trans = transform_matrix(fft_map.shape, *args, return_inverse=False,
                              **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))
+
+
+class HOGFeatures(BasePipeElement):
+    """Extract HOG feature from an image.
+
+    Arguments
+    ---------
+    orientations: int
+        The number of orientation bins
+    HOG_cellsize: [int,int]
+        The size of the (non-overlapping) cells
+
+    Returns
+    -------
+    HOGs: vector of HOG feature values
+    refGrid_HOG: matrix where each value corresponds to an index in HOGs.
+    Use this to find where in the image a particular HOG feature
+    value comes from
+    """
+    def __init__(self, orientations=9, hog_cellsize=[10, 10]):
+        self.orientations = orientations
+        self.hog_cellsize = hog_cellsize
+
+    def _execute(self, img):
+        return hog_features(
+            img, orientations=self.orientations,
+            hog_cellsize=self.hog_cellsize)
+
+
+def hog_features(img, orientations=9, hog_cellsize=[10, 10]):
+    # get hog features
+    hogs = hog(img, orientations,
+               hog_cellsize,
+               cells_per_block=(1, 1),
+               visualize=False,
+               multichannel=True)
+    # preallocate hog reference frame
+    ref_grid_hog = np.zeros(
+        [np.int(np.floor(img.shape[0]/hog_cellsize[0])),
+         np.int(np.floor(img.shape[1]/hog_cellsize[1])),
+         orientations])
+    c = 0
+    for x in range(0, ref_grid_hog.shape[1]):
+        for y in range(0, ref_grid_hog.shape[0]):
+            for z in range(0, ref_grid_hog.shape[2]):
+                ref_grid_hog[y, x, z] = c
+                c = c+1
+
+    return hogs, ref_grid_hog
+
+
+class ColorFeatures(BasePipeElement):
+    """Extract Color distribution features from image
+    Arguments
+    ---------
+    nsteps: int
+        The number of bins used on the pdf of color values
+    Returns
+    -------
+    color_distributions: vector of color pdf values
+    ref_grid: matrix where each value corresponds to an
+    index in ColorDistributions.
+    Use this to find where in the image a particular
+    feature value comes from
+    """
+    def __init__(self, nsteps=25):
+        self.nsteps = nsteps
+
+    def _execute(self, img):
+        return color_features(
+            img, nsteps=self.nsteps)
+
+
+def color_features(img, nsteps=25):
+    # preallocate color_distributions
+    color_distributions = []
+    # preallocate reference frame
+    ref_grid = np.zeros([img.shape[2], nsteps])
+    count = 0
+    for channel in range(0, img.shape[2]):
+        count = count+1
+        color_distributions_temp, b = np.histogram(
+            np.reshape(img[:, :, channel], img.shape[0]*img.shape[1]),
+            nsteps,
+            density=True)
+        color_distributions = np.concatenate((color_distributions,
+                                              color_distributions_temp))
+        ref_grid[count-1, :] = np.array(range(nsteps*(count-1),
+                                              nsteps*(count)))
+
+    return color_distributions, ref_grid
+
+
+class PixelFeatures(BasePipeElement):
+    """Extract pixel intesity features from image
+    Arguments
+    ---------
+    newsize: [int,int]
+       prior to extracting the pixel intensities,
+       the image is converted to this size to reduce the
+       number of features
+    Returns
+    -------
+    Pixel_Intensities: vector of pixel intensities
+    refGrid: matrix where each value corresponds to an index
+    in Pixel_Intensities.
+    Use this to find where in the image a particular feature
+    value comes from.
+    """
+    def __init__(self, newsize=[25, 25]):
+        self.newsize = newsize
+
+    def _execute(self, img):
+        return pixel_features(
+            img, newsize=self.newsize)
+
+
+def pixel_features(img, newsize=[25, 25]):
+    img = resize(img, newsize)
+    pixel_intensities = np.reshape(img,
+                                   [1, img.shape[0]*img.shape[1],
+                                    img.shape[2]])
+    ref_grid_pixel_intensities = np.zeros([img.shape[0],
+                                           img.shape[1],
+                                           img.shape[2]])
+    c = 0
+    for x in range(0, img.shape[1]-1):
+        for y in range(0, img.shape[0]-1):
+            for z in range(0, img.shape[2]-1):
+                ref_grid_pixel_intensities[y, x, z] = c
+                c = c+1
+    return pixel_intensities, ref_grid_pixel_intensities
+
+
+class SetColorChannels(BasePipeElement):
+    """Image preprocessing step for color
+    conversion and selecting specific color channels
+    Arguments
+    ---------
+    convert2cielab: bool
+       use to convert rgb to cielab (convert2cielab = True/Flase)
+    get_layers: array
+       Select which channels of the image to keep (get_layers= [0,1,2])
+    Returns
+    -------
+    img: the adjusted image
+    """
+    def __init__(self, convert2cielab=False, get_layers=[]):
+        self.convert2cielab = convert2cielab
+        self.get_layers = get_layers
+
+    def _execute(self, img):
+        return set_color_channels(
+            img,
+            convert2cielab=self.convert2cielab,
+            get_layers=self.get_layers)
+
+
+def set_color_channels(img, convert_to_cielab=False, get_layers=[]):
+    # preprocessing step for images
+    # use to convert rgb to cielan (convert2cielab = True/Flase)
+    # Select which channels of the image to keep (get_layers= [0,1,2])
+    # Convert RGB to Cie Lab
+    if convert_to_cielab:
+        img = sk.color.rgb2lab(img)
+    # Check which image layers to include
+    if get_layers == []:
+        get_layers = range(0, img.shape[2])
+    newimg = img[:, :, get_layers]
+    return newimg

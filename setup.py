@@ -16,6 +16,7 @@ setup(
         'pandas',
         'sklearn',
         'scipy',
+        'scikit-image',
         'tqdm',
     ]
 )
