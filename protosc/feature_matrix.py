@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 
 class FeatureMatrix():
@@ -22,27 +23,54 @@ class FeatureMatrix():
         rev_lookup_table = []
         n_col = 0
         for key, features in data[0].items():
+            if len(features.shape) == 1:
+                n_channel = 1
+            else:
+                n_channel = features.shape[1]
             for sub_feature_id in range(features.shape[0]):
+
                 rev_lookup_table.append({
                     "pipeline": key,
                     "sub_feature_id": sub_feature_id,
-                    "col_ids": [i+n_col for i in range(features.shape[1])]
+                    "col_ids": [i+n_col for i in range(n_channel)]
                 })
-                n_col += features.shape[1]
+                n_col += n_channel
 
         X = np.zeros((n_row, n_col))
         for i_data, data_packet in enumerate(data):
             i_col = 0
             for features in data_packet.values():
+                if len(features.shape) == 1:
+                    n_channel = 1
+                else:
+                    n_channel = features.shape[1]
                 for sub_feature_id in range(features.shape[0]):
-                    X[i_data, i_col: i_col+features.shape[1]] = features[
+                    X[i_data, i_col: i_col+n_channel] = features[
                         sub_feature_id]
-                    i_col += features.shape[1]
+                    i_col += n_channel
         return cls(X, rev_lookup_table)
 
     @classmethod
     def from_matrix(cls, X):
         return cls(X)
+
+    def copy(self):
+        X_copy = self.X.copy()
+        table_copy = deepcopy(self.rev_lookup_table)
+        return self.__class__(X_copy, rev_lookup_table=table_copy)
+
+    def add_random_columns(self, n):
+        shape = (self.shape[0], n)
+        added_X = np.random.randn(*shape)
+        old_columns = self.X.shape[1]
+        old_features = self.shape[1]
+        self.X = np.hstack((self.X, added_X))
+        for i in range(n):
+            self.rev_lookup_table.append({
+                "pipeline": "random",
+                "sub_feature_id": old_features+i,
+                "col_ids": [old_columns+i],
+            })
 
     def __getitem__(self, key):
         return self.get_slice(key)
@@ -174,19 +202,28 @@ def convert_slice(s, rev_lookup_table):
         step = 1
     else:
         step = s.step
+
+    def convert_negative(val):
+        if val >= 0:
+            return val
+        else:
+            return len(rev_lookup_table)+val
+
+    start = convert_negative(start)
+    stop = convert_negative(stop)
     return start, stop, step
 
 
-class FeatureMatrixView():
-    def __init__(self, feature_matrix, subset):
-        self._fm = feature_matrix
-        self.rev_lookup_table = [feature_matrix.rev_lookup_table[i]
-                                 for i in subset]
-
-    def get_slice(self, key, rev_lookup_table=None):
-        if rev_lookup_table is None:
-            rev_lookup_table = self.rev_lookup_table
-        return self._fm.get_slice(key, rev_lookup_table)
-
-    def __getitem__(self, key):
-        return self.get_slice(key)
+# class FeatureMatrixView():
+#     def __init__(self, feature_matrix, subset):
+#         self._fm = feature_matrix
+#         self.rev_lookup_table = [feature_matrix.rev_lookup_table[i]
+#                                  for i in subset]
+#
+#     def get_slice(self, key, rev_lookup_table=None):
+#         if rev_lookup_table is None:
+#             rev_lookup_table = self.rev_lookup_table
+#         return self._fm.get_slice(key, rev_lookup_table)
+#
+#     def __getitem__(self, key):
+#         return self.get_slice(key)

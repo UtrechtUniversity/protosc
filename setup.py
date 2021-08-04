@@ -17,5 +17,6 @@ setup(
         'sklearn',
         'scipy',
         'scikit-image',
+        'tqdm',
     ]
 )
