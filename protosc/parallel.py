@@ -1,8 +1,11 @@
 from multiprocessing import Queue, cpu_count, Process
 from tqdm import tqdm
 
+from tqdm import tqdm
 
-def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
+
+def execute_parallel(jobs, target, n_jobs=-1, progress_bar=False, args=[],
+                     kwargs={}):
     """Parallel running of measure jobs.
 
     Arguments
@@ -27,7 +30,7 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     if n_jobs is None:
         n_jobs = 1
     elif n_jobs == -1:
-        n_jobs = cpu_count()
+        n_jobs = max(1, cpu_count()-1)
 
     queue_size = len(jobs)
     job_queue = Queue(maxsize=1000)
@@ -51,10 +54,7 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     for job in jobs:
         job_queue.put(job)
 
-    results = []
-    for _ in range(queue_size):
-        results.append(result_queue.get())
-        pbar.update(1)
+    results = _get_all_results(result_queue, progress_bar, queue_size)
 
     for _ in range(n_jobs):
         job_queue.put(None)
@@ -69,6 +69,22 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     pbar.close()
 
     return ordered_results
+
+
+def _get_all_results(result_queue, progress_bar, queue_size):
+    results = []
+    if progress_bar:
+        if isinstance(progress_bar, tqdm):
+            for _ in range(queue_size):
+                results.append(result_queue.get())
+                progress_bar.update()
+        else:
+            for _ in tqdm(range(queue_size)):
+                results.append(result_queue.get())
+    else:
+        for _ in range(queue_size):
+            results.append(result_queue.get())
+    return results
 
 
 def _wrapper_target(job_queue, output_queue, exec_func, *args, **kwargs):

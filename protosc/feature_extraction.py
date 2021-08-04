@@ -1,10 +1,12 @@
-from protosc.pipeline import BasePipeElement
+from matplotlib import pyplot as plt
 import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.sparse import csr_matrix
 import skimage as sk
 from skimage.feature import hog
 from skimage.transform import resize
+
+from protosc.pipeline import BasePipeElement
 
 
 class FourierFeatures(BasePipeElement):
@@ -39,16 +41,30 @@ class FourierFeatures(BasePipeElement):
         self.absolute = absolute
 
     def _execute(self, img):
-        return fourier_features(
+        data = fourier_features(
             img, n_angular=self.n_angular, n_spatial=self.n_spatial,
             cut_circle=self.cut_circle, absolute=self.absolute)
+        return data
+
+    def _get_ref_func(self, img):
+        def ref_func():
+            _, inv_matrix = transform_matrix(
+                img.shape, self.n_angular, self.n_spatial, return_inverse=True,
+                return_ids=False, cut_circle=self.cut_circle)
+            inv_matrix.data[:] = 1
+            return inv_matrix, img.shape
+        return self.name + str(img.shape), ref_func
 
     @property
-    def name(self):
-        name = super(FourierFeatures, self).name
-        name += f"_a{self.n_angular}s{self.n_spatial}c{self.cut_circle}"
-        name += f"ab{self.absolute}"
-        return name
+    def _plot_func(self):
+        def plot(data, i_feature):
+            inv_matrix, shape = data
+            feature_vec = np.zeros((inv_matrix.shape[1], 1))
+            feature_vec[i_feature] = 1
+            img = inv_matrix.dot(feature_vec).reshape(shape[:2])
+            plt.imshow(img, cmap="binary")
+            plt.show()
+        return plot
 
 
 class AbsoluteFeatures(BasePipeElement):
@@ -171,6 +187,33 @@ class HOGFeatures(BasePipeElement):
             img, orientations=self.orientations,
             hog_cellsize=self.hog_cellsize)
 
+    def _get_ref_func(self, img):
+        def ref_func():
+            # preallocate hog reference frame
+            ref_grid_hog = np.zeros(
+                [np.int(np.floor(img.shape[0]/self.hog_cellsize[0])),
+                 np.int(np.floor(img.shape[1]/self.hog_cellsize[1])),
+                 self.orientations])
+            c = 0
+            for x in range(0, ref_grid_hog.shape[1]):
+                for y in range(0, ref_grid_hog.shape[0]):
+                    for z in range(0, ref_grid_hog.shape[2]):
+                        ref_grid_hog[y, x, z] = c
+                        c = c+1
+            return ref_grid_hog
+        return str(self.__class__)+str(img.shape), ref_func
+
+    @property
+    def _plot_func(self):
+        def plot(ref_grid, i_feature):
+            data = np.zeros(ref_grid.shape[:2])
+            for i in i_feature:
+                x, y, _ = np.where(ref_grid == i)
+                data[x[0], y[0]] += 1/ref_grid.shape[2]
+            plt.imshow(data, cmap="binary", vmin=0, vmax=1)
+            plt.show()
+        return plot
+
 
 def hog_features(img, orientations=9, hog_cellsize=[10, 10]):
     # get hog features
@@ -179,19 +222,7 @@ def hog_features(img, orientations=9, hog_cellsize=[10, 10]):
                cells_per_block=(1, 1),
                visualize=False,
                multichannel=True)
-    # preallocate hog reference frame
-    ref_grid_hog = np.zeros(
-        [np.int(np.floor(img.shape[0]/hog_cellsize[0])),
-         np.int(np.floor(img.shape[1]/hog_cellsize[1])),
-         orientations])
-    c = 0
-    for x in range(0, ref_grid_hog.shape[1]):
-        for y in range(0, ref_grid_hog.shape[0]):
-            for z in range(0, ref_grid_hog.shape[2]):
-                ref_grid_hog[y, x, z] = c
-                c = c+1
-
-    return hogs, ref_grid_hog
+    return hogs
 
 
 class ColorFeatures(BasePipeElement):

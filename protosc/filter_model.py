@@ -1,10 +1,17 @@
+from collections import defaultdict
+
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from scipy import stats
 from scipy.special import betainc
+from sklearn.preprocessing import StandardScaler
+
+
 from protosc.feature_matrix import FeatureMatrix
 from tqdm import tqdm
+from protosc.final_selection import final_selection
+from protosc.parallel import execute_parallel
 
 
 def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
@@ -12,9 +19,10 @@ def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
     crossvalidate on holdout"""
 
     svclassifier = SVC(kernel=kernel)
-    svclassifier.fit(X_train, y_train)
+    scaler = StandardScaler().fit(X_train)
+    svclassifier.fit(scaler.transform(X_train), y_train)
 
-    y_predict = svclassifier.predict(X_val)
+    y_predict = svclassifier.predict(scaler.transform(X_val))
     return accuracy_score(y_val, y_predict)
 
 
@@ -33,7 +41,6 @@ def train_kfold_validate(X, y, features=None):
 def calc_chisquare(X_training, y_training):
     """Per feature, calculate chi-square using kruskall-wallis between
     two classes"""
-
     X_chisquare = []
     y_split = []
     cats = np.unique(y_training)
@@ -166,7 +173,7 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
 
 
 def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
-                 null_distribution=False):
+                 null_distribution=False, seed=None):
     if feature_id is None:
         feature_id = np.arange(len(y))
 
@@ -184,6 +191,7 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
     # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
     output_sel = []
 
+    np.random.seed()
     for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
         X_train, y_train, X_val, y_val = cur_fold
 
@@ -205,3 +213,32 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
     pbar.close()
 
     return output_sel
+
+
+def select_with_filter(X, y, *args, fold_seed=None, n_jobs=-1, **kwargs):
+    if fold_seed is None:
+        fold_seed = np.random.randint(1000000)
+
+    def perform_filter_model(*args, **kwargs):
+        return filter_model(*args, **kwargs)
+
+    jobs = [{
+        "seed": np.random.randint(0, 192837442),
+        "null_distribution": i != 0}
+            for i in range(101)]
+
+    all_results = execute_parallel(jobs, perform_filter_model,
+                                   args=(X, y, *args),
+                                   kwargs={"fold_seed": fold_seed, **kwargs},
+                                   progress_bar=True,
+                                   n_jobs=n_jobs)
+
+    null_accuracy = defaultdict(lambda: [])
+    feature_accuracy = all_results[0]
+    for res in all_results[1:]:
+        for i, val in enumerate(res):
+            null_accuracy[i].append(val[1])
+
+    null_accuracy = list(null_accuracy.values())
+    feature_selection = final_selection(feature_accuracy, null_accuracy)
+    return feature_selection
