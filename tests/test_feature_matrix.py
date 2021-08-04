@@ -1,9 +1,9 @@
-from protosc.pipeline import BasePipeElement
 import numpy as np
+import pytest
+
+from protosc.pipeline import BasePipeElement
 from protosc.pipe_complex import PipeComplex
 from protosc.feature_matrix import FeatureMatrix
-from libpasteurize.fixes.feature_base import Feature
-import pytest
 
 
 class RandomPipe(BasePipeElement):
