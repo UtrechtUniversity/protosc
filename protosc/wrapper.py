@@ -6,16 +6,16 @@ from protosc.feature_matrix import FeatureMatrix
 def calc_accuracy(X, y, selection, n_fold=8):
     """ Calculates the average accuracy score of the selected features over n_folds
     Args:
-        X: np.array, 
+        X: np.array,
             features
-        y: np.array, 
+        y: np.array,
             categories (1/0)
-        selection: np.array, 
+        selection: np.array,
             selected features
-        n_fold: int, 
+        n_fold: int,
             number of folds
     Returns:
-        accuracy: float, 
+        accuracy: float,
             average accuracy over n_folds
     """
     fold_seed = None
@@ -34,12 +34,12 @@ def calc_accuracy(X, y, selection, n_fold=8):
 def __append_model(clusters, selected):
     """ Updates model
     Args:
-        clusters: np.array, 
+        clusters: np.array,
             all clusters of correlating features
-        selected: list, 
+        selected: list,
             indexes of clusters that increase accuracy
     Returns:
-        model: np.array, 
+        model: np.array,
             updated selection of features
     """
     try:
@@ -63,10 +63,11 @@ def __exclude(X, y, clusters, selected, accuracy, n_fold, search_space):
         selected: list, selected cluster indexes
         accuracy: float, highest yielded accuracy
     Returns:
-        if removal increased accuract: function returns updated selected, accuracy variables
+        if removal increased accuracy: function returns updated variables
+        (i.e., selected & accuracy)
     """
     print(
-        f"Trying to increase accuracy by removing/replacing clusters...")
+        "Trying to increase accuracy by removing/replacing clusters...")
     exclude = []
     replace = {}
     for i in selected:
@@ -76,7 +77,8 @@ def __exclude(X, y, clusters, selected, accuracy, n_fold, search_space):
         accuracy_new = calc_accuracy(X, y, selection, n_fold)
         if accuracy_new > accuracy:
             print(
-                f'Removed clusters {i}. Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
+                f'Removed clusters {i}. \
+                    Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
             accuracy = accuracy_new
             exclude.append(i)
         else:
@@ -89,7 +91,9 @@ def __exclude(X, y, clusters, selected, accuracy, n_fold, search_space):
                 accuracy_new = calc_accuracy(X, y, selection, n_fold)
                 if accuracy_new > accuracy:
                     print(
-                        f'Replaced cluster {i} with {j}. Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
+                        f'Replaced cluster {i} with {j}. \
+                            Old accuracy: {accuracy}, \
+                            New accuracy: {accuracy_new}')
                     accuracy = accuracy_new
                     replace.update({i: j})
     if exclude:
@@ -105,7 +109,7 @@ def __exclude(X, y, clusters, selected, accuracy, n_fold, search_space):
 def __matching(output):
     """ Find recurring clusters in wrapper output of multiple runs
     Args:
-        output: dict, 
+        output: dict,
             contains models, clusters, and accuracy scores of all wrapper runs
     Returns:
         rec_clusters: list,
@@ -120,8 +124,9 @@ def __matching(output):
     return rec_clusters
 
 
-def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_space=0.15,
-            stop=4, n_fold=8, n=1):
+def wrapper(X, y, clusters,
+            decrease=True, add_im=False, excl=False,
+            search_space=0.15, stop=4, n_fold=8, n=1):
     """ Determines the cluster of features yielding the highest accuracy scores
     Args:
         X: np.array, FeatureMatrix
@@ -147,14 +152,16 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
             after which looping will stop
         n_fold: int
             number of folds (used for calculating accuracy)
-        n: int, 
+        n: int,
             number of times you want to run the code
     Returns:
-        output: dictionary, 
-            Contains:
-            model: np.array, selected features yielding the highest accuracy scores
-            selected: list, selected cluster indexes
-            accuracy: float, highest yielded accuracy
+        output: dictionary,
+            model: np.array, 
+                selected features yielding the highest accuracy scores
+            selected: list, 
+                selected cluster indexes
+            accuracy: float, 
+                highest yielded accuracy
     """
     # Define final output variable
     output = {'model': [], 'features': [],
@@ -184,7 +191,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
             added = 0
             if not_added == stop:
                 print(
-                    f"No features were added in {stop} rounds. Stop searching for new clusters.")
+                    f"No features were added in {stop} rounds. \
+                        Stop searching for new clusters.")
                 break
 
             # If current cluster has already been selected, go to next
@@ -215,8 +223,9 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
                     selected_feature = i
                     accuracy = accuracy_new
 
-                    # If 'add immediately'; add said cluster to model immediately
-                    # Continue with this model for adding new clusters
+                    # If 'add immediately'; add said cluster to model
+                    # immediately continue with this model for adding
+                    # new clusters
                     if add_im:
                         selected.append(i)
                         model = __append_model(clusters, selected)
@@ -227,7 +236,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
                 selected.append(selected_feature)
                 model = __append_model(clusters, selected)
                 print(
-                    f'added cluster {selected_feature}, new accuracy = {accuracy}')
+                    f'added cluster {selected_feature}, \
+                        new accuracy = {accuracy}')
 
             # If no clusters were added; increase 'not_added' stopping value
             if added == 0:
@@ -241,7 +251,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
                     X, y, clusters, selected, accuracy, n_fold, search_space)
                 model = np.array(clusters)[selected]
             except TypeError:
-                print("Removal/replacement of clusters did not increase accuracy.")
+                print("Removal/replacement of clusters did \
+                     not increase accuracy.")
 
         # Add output per run to output dictionary
         output['model'].append(model)
