@@ -26,10 +26,7 @@ def create_simulation_data(n_features=400, n_examples=500, n_true_features=25,
     for i_feature, feature_idx in enumerate(selected_features):
         feature_matrix[ones, feature_idx] += biases[i_feature]
 
-    final_biases = np.zeros(n_features)
-    final_biases[selected_features] = biases
-    ground_truth = {"selected_features": selected_features,
-                    "biases": final_biases}
+    ground_truth = {"selected_features": selected_features, "biases": biases}
     return FeatureMatrix(feature_matrix), y, ground_truth
 
 
