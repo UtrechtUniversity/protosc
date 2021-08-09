@@ -49,7 +49,7 @@ def __append_model(clusters, selected):
     return model
 
 
-def __exclude(X, y, clusters, selected, accuracy, n_fold):
+def __exclude(X, y, clusters, selected, accuracy, n_fold, search_space):
     """ Tries to increase accuracy of selected model by removing clusters
     Args:
         X: np.array, FeatureMatrix
@@ -65,20 +65,59 @@ def __exclude(X, y, clusters, selected, accuracy, n_fold):
     Returns:
         if removal increased accuract: function returns updated selected, accuracy variables
     """
-    print("Trying to increase accuracy by removing clusters...")
+    print(
+        f"Trying to increase accuracy by removing/replacing clusters...")
     exclude = []
+    replace = {}
     for i in selected:
+        # check if removing cluster increases accuracy
         rest = [x for x in selected if x != i and x not in exclude]
         selection = np.concatenate(np.array(clusters)[rest])
         accuracy_new = calc_accuracy(X, y, selection, n_fold)
         if accuracy_new > accuracy:
-            accuracy = accuracy_new
-            exclude.append(i)
             print(
                 f'Removed clusters {i}. Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
+            accuracy = accuracy_new
+            exclude.append(i)
+        else:
+            # check if replacing cluster with new cluster increases accuracy
+            search = [x for x in range(len(clusters))
+                      if x not in selected]
+            search = search[:int(len(search)*search_space)]
+            for j in search:
+                selection = np.append(selection, clusters[i])
+                accuracy_new = calc_accuracy(X, y, selection, n_fold)
+                if accuracy_new > accuracy:
+                    print(
+                        f'Replaced cluster {i} with {j}. Old accuracy: {accuracy}, New accuracy: {accuracy_new}')
+                    accuracy = accuracy_new
+                    replace.update({i: j})
     if exclude:
         selected = [x for x in selected if x not in exclude]
         return selected, accuracy_new
+    if replace:
+        for x in range(len(selected)):
+            if selected[x] in replace:
+                selected[x] = replace[selected[x]]
+        return selected, accuracy_new
+
+
+def __matching(output):
+    """ Find recurring clusters in wrapper output of multiple runs
+    Args:
+        output: dict, 
+            contains models, clusters, and accuracy scores of all wrapper runs
+    Returns:
+        rec_clusters: list,
+            all recurring clusters
+    """
+    all_runs = len(output['clusters'])
+    all_clusters = [y for x in output['clusters'] for y in x]
+    rec_clusters = []
+    for x in set(all_clusters):
+        if all_clusters.count(x) == all_runs:
+            rec_clusters.append(x)
+    return rec_clusters
 
 
 def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_space=0.15,
@@ -118,7 +157,8 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
             accuracy: float, highest yielded accuracy
     """
     # Define final output variable
-    output = {'model': [], 'clusters': [], 'accuracy': []}
+    output = {'model': [], 'features': [],
+              'clusters': [], 'accuracy': [], 'recurring': []}
 
     # Repeat code n times
     for rounds in range(n):
@@ -198,14 +238,17 @@ def wrapper(X, y, clusters, decrease=True, add_im=False, excl=False, search_spac
         if excl and len(selected) > 1:
             try:
                 selected, accuracy = __exclude(
-                    X, y, clusters, selected, accuracy, n_fold)
+                    X, y, clusters, selected, accuracy, n_fold, search_space)
                 model = np.array(clusters)[selected]
             except TypeError:
-                print("Removal of clusters did not increase accuracy.")
+                print("Removal/replacement of clusters did not increase accuracy.")
 
         # Add output per run to output dictionary
         output['model'].append(model)
+        output['features'].append(np.concatenate(model))
         output['clusters'].append(selected)
         output['accuracy'].append(accuracy)
+
+    output['recurring'] = __matching(output)
 
     return output
