@@ -5,7 +5,7 @@ from protosc.simulation import create_correlated_data
 from protosc.filter_model import select_features
 import numpy as np
 
-N = 1
+N = 2
 ADD_IM = True
 FOLD_SEED = None
 
@@ -19,8 +19,8 @@ def __create_data():
 
 def __run_wrapper():
     X, y, clusters = __create_data()
-    fast = Wrapper(X, y, clusters, add_im=ADD_IM, fold_seed=FOLD_SEED, n=N)
-    output = fast.wrapper()
+    fast = Wrapper(X, y, clusters, add_im=ADD_IM, fold_seed=FOLD_SEED)
+    output = fast.wrapper(n_rounds=N, n_jobs=-1)
     return output
 
 
