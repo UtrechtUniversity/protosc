@@ -1,12 +1,13 @@
 import numpy as np
 from protosc.filter_model import train_xvalidate
 from protosc.feature_matrix import FeatureMatrix
+from protosc.parallel import execute_parallel
 
 
 class Wrapper:
     def __init__(self, X, y, clusters, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=4, n=1, fold_seed=None):
+                 stop=4, fold_seed=None):
         """
         Args:
             X: np.array, FeatureMatrix
@@ -49,8 +50,12 @@ class Wrapper:
         self.add_im = add_im
         self.excl = excl
         self.stop = stop
-        self.n = n
         self.fold_seed = fold_seed
+
+    def copy(self):
+        return self.__class__(self.X, self.y, self.clusters, n_fold=self.n_fold, search_space=self.search_space,
+                              decrease=self.decrease, add_im=self.add_im, excl=self.excl, stop=self.stop,
+                              fold_seed=self.fold_seed)
 
     def calc_accuracy(self, selection):
         """ Calculates the average accuracy score of the selected features over n_folds
@@ -160,7 +165,7 @@ class Wrapper:
                 rec_clusters.append(x)
         return rec_clusters
 
-    def wrapper(self):
+    def wrapper(self, n_rounds=1, n_jobs=1):
         """ Determines which cluster of features yield the highest accuracy score
         Returns:
             output: dictionary,
@@ -177,107 +182,127 @@ class Wrapper:
                         each wrapper run.
         """
         # Define final output variable
-        output = {'model': [], 'features': [], 'clusters': [], 'accuracy': []}
 
-        # Repeat code n times
-        for rounds in range(self.n):
-            if self.n > 1:
-                print(f'-- Round {rounds+1} of {self.n} --')
+        if n_jobs != 1 and n_rounds != 1:
+            output = self._wrapper_parallel(n_rounds, n_jobs)
+        else:
+            output = {'model': [], 'features': [], 'clusters': [], 'accuracy': []}
+            # Repeat code n times
+            for _ in range(n_rounds):
+                model, features, selected, accuracy = self._wrapper_once()
+                # Add output per run to output dictionary
+                output['model'].append(model)
+                output['features'].append(features)
+                output['clusters'].append(selected)
+                output['accuracy'].append(accuracy)
 
-            # Define output variables
-            selected = []
-            model = []
-            not_added = 0
-            if not isinstance(self.X, FeatureMatrix):
-                self.X = FeatureMatrix(self.X)
-
-            # Define search order
-            if self.decrease:
-                cluster_order = range(len(self.clusters))
-            else:
-                cluster_order = reversed(range(len(self.clusters)))
-
-            # Find clusters that increase accuracy
-            for cluster in cluster_order:
-                # If there were no features added in n rounds, stop searching
-                added = 0
-                if not_added == self.stop:
-                    print(f"""
-                    No features were added in {self.stop} rounds.
-                    Stop searching for new clusters.""")
-                    break
-
-                # If current cluster has already been selected, go to next
-                if cluster in selected:
-                    continue
-
-                # Set initial accuracy
-                # if isinstance(model, list):
-                if not model:
-                    accuracy = 0
-
-                # Determine search space
-                rest = [x for x in range(len(self.clusters))
-                        if x not in selected]
-                rest = rest[:int(len(rest)*self.search_space)]
-
-                # Look in search space for clusters that increase accuracy
-                for i in rest:
-                    # if isinstance(model, list):
-                    if not model:
-                        selection = self.clusters[i]
-                    else:
-                        selection = np.append(model, self.clusters[i])
-                    accuracy_new = self.calc_accuracy(selection)
-
-                    # If accuracy is increased; update accuracy
-                    # and save cluster
-                    if accuracy_new > accuracy:
-                        added += 1
-                        not_added = 0
-                        sel_feature = i
-                        accuracy = accuracy_new
-
-                        # If 'add immediately'; add said cluster to model
-                        # immediately continue with this model for adding
-                        # new clusters
-                        if self.add_im:
-                            selected.append(i)
-                            model = model + [self.clusters[sel_feature]]
-                            print(f"""
-                            added cluster {i}, new accuracy = {accuracy}""")
-
-                # Only add cluster resulting in highest increase to model
-                if self.add_im is False and added > 0:
-                    selected.append(sel_feature)
-                    model = model + [self.clusters[sel_feature]]
-                    print(f"""
-                    added cluster {sel_feature}, new accuracy = {accuracy}""")
-
-                # If no clusters were added; increase 'not_added'
-                # stopping value
-                if added == 0:
-                    print("""
-                    nothing added""")
-                    not_added += 1
-
-            # Remove clusters
-            if self.excl and len(selected) > 1:
-                try:
-                    selected, accuracy = self.__exclude(selected, accuracy)
-                    model = np.array(self.clusters)[selected]
-                except TypeError:
-                    print("""
-                    Removal/replacement of clusters did not increase accuracy.
-                    """)
-
-            # Add output per run to output dictionary
-            output['model'].append(model)
-            output['features'].append(np.concatenate(model))
-            output['clusters'].append(selected)
-            output['accuracy'].append(accuracy)
-
-        if self.n > 1:
+        if n_rounds > 1:
             output['recurring'] = self.__matching(output)
 
         return output
+
+    def _wrapper_parallel(self, n_rounds, n_jobs=-1):
+        def wrapper_exec(wrapper):
+            return wrapper._wrapper_once()
+
+        output = {}
+        jobs = [{"wrapper": self.copy()} for _ in range(n_rounds)]
+        results = execute_parallel(jobs, wrapper_exec, n_jobs=n_jobs)
+
+        output['model'] = [r[0] for r in results]
+        output['features'] = [r[1] for r in results]
+        output['clusters'] = [r[2] for r in results]
+        output['accuracy'] = [r[3] for r in results]
+        return output
+
+    def _wrapper_once(self):
+        # Define output variables
+        selected = []
+        model = []
+        not_added = 0
+        if not isinstance(self.X, FeatureMatrix):
+            self.X = FeatureMatrix(self.X)
+
+        # Define search order
+        if self.decrease:
+            cluster_order = range(len(self.clusters))
+        else:
+            cluster_order = reversed(range(len(self.clusters)))
+
+        # Find clusters that increase accuracy
+        for cluster in cluster_order:
+            # If there were no features added in n rounds, stop searching
+            added = 0
+            if not_added == self.stop:
+                print(f"""
+                No features were added in {self.stop} rounds.
+                Stop searching for new clusters.""")
+                break
+
+            # If current cluster has already been selected, go to next
+            if cluster in selected:
+                continue
+
+            # Set initial accuracy
+            # if isinstance(model, list):
+            if not model:
+                accuracy = 0
+
+            # Determine search space
+            rest = [x for x in range(len(self.clusters))
+                    if x not in selected]
+            rest = rest[:int(len(rest)*self.search_space)]
+
+            # Look in search space for clusters that increase accuracy
+            for i in rest:
+                # if isinstance(model, list):
+                if not model:
+                    selection = self.clusters[i]
+                else:
+                    selection = np.append(model, self.clusters[i])
+                accuracy_new = self.calc_accuracy(selection)
+
+                # If accuracy is increased; update accuracy
+                # and save cluster
+                if accuracy_new > accuracy:
+                    added += 1
+                    not_added = 0
+                    sel_feature = i
+                    accuracy = accuracy_new
+
+                    # If 'add immediately'; add said cluster to model
+                    # immediately continue with this model for adding
+                    # new clusters
+                    if self.add_im:
+                        selected.append(i)
+                        model = model + [self.clusters[sel_feature]]
+                        print(f"""
+                        added cluster {i}, new accuracy = {accuracy}""")
+
+            # Only add cluster resulting in highest increase to model
+            if self.add_im is False and added > 0:
+                selected.append(sel_feature)
+                model = model + [self.clusters[sel_feature]]
+                print(f"""
+                added cluster {sel_feature}, new accuracy = {accuracy}""")
+
+            # If no clusters were added; increase 'not_added'
+            # stopping value
+            if added == 0:
+                print("""
+                nothing added""")
+                not_added += 1
+
+        # Remove clusters
+        if self.excl and len(selected) > 1:
+            try:
+                selected, accuracy = self.__exclude(selected, accuracy)
+                model = np.array(self.clusters)[selected]
+            except TypeError:
+                print("""
+                Removal/replacement of clusters did not increase accuracy.
+                """)
+
+        return model, np.concatenate(model), selected, accuracy
+
+
