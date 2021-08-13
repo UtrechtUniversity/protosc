@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from protosc.filter_model import train_xvalidate
 from protosc.feature_matrix import FeatureMatrix
@@ -7,7 +8,7 @@ from protosc.parallel import execute_parallel
 class Wrapper:
     def __init__(self, X, y, clusters, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=4, fold_seed=None):
+                 stop=4, fold_seed=1234):
         """
         Args:
             X: np.array, FeatureMatrix
@@ -53,9 +54,12 @@ class Wrapper:
         self.fold_seed = fold_seed
 
     def copy(self):
-        return self.__class__(self.X, self.y, self.clusters, n_fold=self.n_fold, search_space=self.search_space,
-                              decrease=self.decrease, add_im=self.add_im, excl=self.excl, stop=self.stop,
-                              fold_seed=self.fold_seed)
+        return self.__class__(
+            self.X, self.y, self.clusters, n_fold=self.n_fold,
+            search_space=self.search_space, decrease=self.decrease,
+            add_im=self.add_im, excl=self.excl, stop=self.stop,
+            fold_seed=random.randint(0, 100)
+            )
 
     def calc_accuracy(self, selection):
         """ Calculates the average accuracy score of the selected features over n_folds
@@ -66,7 +70,6 @@ class Wrapper:
             accuracy: float,
                 average accuracy score over n_folds.
         """
-        # fold_seed = None
         fold_rng = np.random.default_rng(self.fold_seed)
 
         for cur_fold in self.X.kfold(self.y, k=self.n_fold, rng=fold_rng):
@@ -77,21 +80,6 @@ class Wrapper:
                 X_train[:, selection], y_train, X_val[:, selection],
                 y_val))
         return np.array(accuracy).mean()
-
-    def __append_model(self, selected):
-        """ Updates model with new selection of features
-        Args:
-            selected: list,
-                indexes of clusters that increase accuracy.
-        Returns:
-            model: np.array,
-                updated selection of features.
-        """
-        try:
-            model = self.clusters[selected]
-        except TypeError:
-            model = np.array(self.clusters)[selected]
-        return model
 
     def __exclude(self, selected, accuracy):
         """ Tries to increase accuracy of selected model by removing/replacing clusters
@@ -167,6 +155,11 @@ class Wrapper:
 
     def wrapper(self, n_rounds=1, n_jobs=1):
         """ Determines which cluster of features yield the highest accuracy score
+        Args:
+            n_rounds: int,
+                number of rounds you wish the the wrapper to run
+            n_jobs: int,
+                number of jobs
         Returns:
             output: dictionary,
                 model: np.array,
@@ -181,16 +174,14 @@ class Wrapper:
                     if multiple wrapper runs: cluster indeces that occur in
                         each wrapper run.
         """
-        # Define final output variable
-
+        random.seed(self.fold_seed)
         if n_jobs != 1 and n_rounds != 1:
             output = self._wrapper_parallel(n_rounds, n_jobs)
         else:
-            output = {'model': [], 'features': [], 'clusters': [], 'accuracy': []}
-            # Repeat code n times
+            output = {'model': [], 'features': [],
+                      'clusters': [], 'accuracy': []}
             for _ in range(n_rounds):
                 model, features, selected, accuracy = self._wrapper_once()
-                # Add output per run to output dictionary
                 output['model'].append(model)
                 output['features'].append(features)
                 output['clusters'].append(selected)
@@ -202,9 +193,26 @@ class Wrapper:
         return output
 
     def _wrapper_parallel(self, n_rounds, n_jobs=-1):
-        def wrapper_exec(wrapper):
-            return wrapper._wrapper_once()
-
+        """ Runs wrapper n_rounds times in parallel
+        Args:
+            n_rounds: int,
+                number of rounds you wish the the wrapper to run
+            n_jobs: int,
+                number of jobs
+        Returns:
+            output: dictionary,
+                model: np.array,
+                    selected clustered features yielding the highest accuracy.
+                features: np.array,
+                    selected features yielding the highest accuracy scores.
+                clusters: list,
+                    indeces of selected clusters.
+                accuracy: float,
+                    final (and highest) yielded accuracy of model.
+                recurring: list,
+                    if multiple wrapper runs: cluster indeces that occur in
+                        each wrapper run.
+        """
         output = {}
         jobs = [{"wrapper": self.copy()} for _ in range(n_rounds)]
         results = execute_parallel(jobs, wrapper_exec, n_jobs=n_jobs)
@@ -213,9 +221,21 @@ class Wrapper:
         output['features'] = [r[1] for r in results]
         output['clusters'] = [r[2] for r in results]
         output['accuracy'] = [r[3] for r in results]
+
         return output
 
     def _wrapper_once(self):
+        """ Runs wrapper n_only once
+        Returns:
+            model: list,
+                selected clustered features yielding the highest accuracy.
+            features: np.array,
+                selected features yielding the highest accuracy scores.
+            clusters: list,
+                indeces of selected clusters.
+            accuracy: float,
+                final (and highest) yielded accuracy of model.
+        """
         # Define output variables
         selected = []
         model = []
@@ -306,3 +326,5 @@ class Wrapper:
         return model, np.concatenate(model), selected, accuracy
 
 
+def wrapper_exec(wrapper):
+    return wrapper._wrapper_once()
