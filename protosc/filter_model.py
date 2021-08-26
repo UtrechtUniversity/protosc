@@ -4,6 +4,7 @@ from sklearn.metrics import accuracy_score
 from scipy import stats
 from scipy.special import betainc
 from protosc.feature_matrix import FeatureMatrix
+from tqdm import tqdm
 
 
 def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
@@ -138,7 +139,7 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
     features_sorted = np.argsort(-X_chisquare)
 
     # Remove lowest 5%
-    features_sorted = features_sorted
+    features_sorted = features_sorted[:int(len(features_sorted)*0.95)]
 
     # Sort the chi-squares from high to low
     chisquare_sorted = X_chisquare[features_sorted]
@@ -174,6 +175,8 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
 
     fold_rng = np.random.default_rng(fold_seed)
 
+    pbar = tqdm(total=n_fold)
+
     # Split data into 8 partitions: later use 1 partition as validating data,
     # other 7 as train data
 
@@ -196,5 +199,9 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
             X_train[:, selected_features], y_train,
             X_val[:, selected_features], y_val)
         output_sel.append((selected_features, model_sel_output))
+
+        pbar.update(1)
+
+    pbar.close()
 
     return output_sel
