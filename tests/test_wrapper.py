@@ -24,11 +24,9 @@ def __run_wrapper():
 
 def __test_model(output):
     model = output['model']
-    clusters = output['clusters']
     assert isinstance(model, list)
     assert len(model) == N_FOLD
     assert all([isinstance(i, list) for i in model])
-    assert all([len(model[i]) == len(clusters[i]) for i in range(N_FOLD)])
 
 
 def __test_features(output):
@@ -51,7 +49,7 @@ def __test_accuracy(output):
 def __test_recurring(output):
     recurring = output['recurring']
     new = []
-    [new.extend(i) for i in output['clusters']]
+    [new.extend(i) for i in output['features']]
     assert isinstance(recurring, list)
     assert [j for j in recurring if new.count(j) == N_FOLD] == recurring
 
