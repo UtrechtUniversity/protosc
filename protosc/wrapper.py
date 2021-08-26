@@ -97,7 +97,8 @@ class Wrapper:
         added cluster {i}, new accuracy = {accuracy}""")
         return selected, model
 
-    def __exclude(self, X_train, y_train, X_val, y_val, selected, clusters, accuracy):
+    def __exclude(self, X_train, y_train, X_val, y_val,
+                  selected, clusters, accuracy):
         """ Tries to increase accuracy of selected model by removing/replacing clusters
         Args:
             selected: list,

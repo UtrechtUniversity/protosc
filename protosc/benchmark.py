@@ -2,6 +2,7 @@ from protosc.wrapper import Wrapper
 from protosc import filter_model
 import numpy as np
 
+
 def __run_models(X, y, n_fold=8, fold_seed=None):
     # Run filter model
     output_filter = filter_model(X, y, n_fold=n_fold, fold_seed=fold_seed)
@@ -15,6 +16,7 @@ def __run_models(X, y, n_fold=8, fold_seed=None):
     output_fast = fast.wrapper(n_jobs=-1)
 
     return output_filter, output_slow, output_fast
+
 
 def __examine_filter(output_filter, n_fold=8):
     # Calculate average accuracy score
@@ -36,6 +38,7 @@ def __examine_filter(output_filter, n_fold=8):
                'Feature frequencies': fq_features}
     return results
 
+
 def __examine_wrapper(output_wrapper, n_fold=8):
     # Calculate average accuracy score
     av_accuracy = np.mean(output_wrapper['accuracy'])
@@ -54,6 +57,7 @@ def __examine_wrapper(output_wrapper, n_fold=8):
                'Feature frequencies': fq_features}
     return results
 
+
 def __compare_models(output_filter, output_slow, output_fast, n_fold=8):
     filter_model = __examine_filter(output_filter, n_fold=n_fold)
     wrapper_fast = __examine_wrapper(output_fast, n_fold=n_fold)
@@ -61,6 +65,7 @@ def __compare_models(output_filter, output_slow, output_fast, n_fold=8):
     dicts = [filter_model, wrapper_slow, wrapper_fast]
     overview = {k: [d[k] for d in dicts] for k in dicts[0]}
     return overview
+
 
 def execute(X, y, fold_seed=None):
     output_filter, output_slow, output_fast = __run_models(
