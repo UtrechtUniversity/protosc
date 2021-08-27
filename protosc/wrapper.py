@@ -32,7 +32,7 @@ class Wrapper:
             stop: int
                 max number of rounds where no clusters are added to model,
                     after which looping will stop.
-            n: int,
+            n_fold: int,
                 number of times you want to run the wrapper.
             fold_seed: int,
                 seed
@@ -58,11 +58,23 @@ class Wrapper:
             )
 
     def __check_X(self):
+        """ Ensure X is indeed FeatureMatrix.
+        Returns:
+            X = FeatureMatrix
+        """
         if not isinstance(self.X, FeatureMatrix):
             self.X = FeatureMatrix(self.X)
         return self.X
 
     def __cluster_order(self, clusters):
+        """ Define cluster order for search space.
+        Args:
+            clusters: np.array,
+                clustered features.
+        Returns:
+            cluster_order: list,
+                (reversed) list of cluster indeces.
+        """
         if self.decrease:
             cluster_order = range(len(clusters))
         else:
@@ -70,6 +82,18 @@ class Wrapper:
         return cluster_order
 
     def __selection(self, clusters, model, i):
+        """ Append model with selected cluster.
+        Args:
+            clusters: np.array,
+                clustered features.
+            model: list,
+                current selection of clustered features.
+            i: int,
+                index of newly selected cluster.
+        Returns:
+            selection: np.array,
+                new selection of clustered features.
+        """
         if not model:
             selection = clusters[i]
         else:
@@ -79,6 +103,10 @@ class Wrapper:
     def __calc_accuracy(self, X_train, y_train, X_val, y_val, selection):
         """ Calculates the average accuracy score of the selected features over n_folds
         Args:
+            X_train/val: np.array, FeatureMatrix
+                Training/validation set of feature matrix to wrap.
+            y_train/val: np.array
+                Training/validation set of categorical outcomes (0/1).
             selection: np.array,
                 selected features used to calculate accuracy.
         Returns:
@@ -91,6 +119,24 @@ class Wrapper:
         return accuracy
 
     def __update_model(self, selected, model, clusters, i, accuracy):
+        """ Append selected with selected cluster.
+        Args:
+            selected: list,
+                list of selected cluster indeces leading to increased accuracy
+            model: list,
+                current selection of clustered features.
+            clusters: np.array,
+                clustered features.
+            i: int,
+                index of newly selected cluster.
+            accuracy: float,
+                accuracy of new model.
+        Returns:
+            model: np.array,
+                new selection of clustered features.
+            selected: list,
+                new selection of cluster indeces.
+        """
         selected.append(i)
         model = model + [clusters[i]]
         print(f"""
@@ -101,6 +147,12 @@ class Wrapper:
                   selected, clusters, accuracy):
         """ Tries to increase accuracy of selected model by removing/replacing clusters
         Args:
+            X_train/val: np.array, FeatureMatrix
+                Training/validation set of feature matrix to wrap.
+            y_train/val: np.array
+                Training/validation set of categorical outcomes (0/1).
+            clusters: np.array,
+                clustered features.
             selected: list,
                 selected cluster indexes used for model.
             accuracy: float,
@@ -156,20 +208,29 @@ class Wrapper:
             return selected, accuracy_new
 
     def __empty_round(self, added, not_added):
+        """ Update number of round no new clusters were added.
+        Args:
+            added: int,
+                number of clusters added in that specific round.
+            not_added: int,
+                total rounds no new clusters were added.
+        Returns:
+            updated not_added
+        """
         if added == 0:
             print("nothing added")
             not_added += 1
         return not_added
 
     def __matching(self, output):
-        """ Find recurring clusters in wrapper output
+        """ Find features that occur in each run (i.e., n_fold).
         Args:
             output: dict,
                 contains models, clusters, and accuracy scores
                 of all wrapper runs.
         Returns:
-            rec_clusters: list,
-                cluster indeces that occur in each wrapper run.
+            rec_features: list,
+                features that occur in each wrapper run.
         """
         all_runs = self.n_fold
         all_features = [f for feat in output['features'] for f in feat]
@@ -182,8 +243,6 @@ class Wrapper:
     def _wrapper_parallel(self, n_jobs=-1):
         """ Runs wrapper n_rounds times in parallel
         Args:
-            n_rounds: int,
-                number of rounds you wish the the wrapper to run
             n_jobs: int,
                 number of jobs
         Returns:
@@ -192,13 +251,8 @@ class Wrapper:
                     selected clustered features yielding the highest accuracy.
                 features: np.array,
                     selected features yielding the highest accuracy scores.
-                clusters: list,
-                    indeces of selected clusters.
                 accuracy: float,
                     final (and highest) yielded accuracy of model.
-                recurring: list,
-                    if multiple wrapper runs: cluster indeces that occur in
-                        each wrapper run.
         """
         output = {}
         fold_rng = np.random.default_rng(self.fold_seed)
@@ -214,7 +268,12 @@ class Wrapper:
         return output
 
     def _wrapper_once(self, X_train, y_train, X_val, y_val):
-        """ Runs wrapper n_only once
+        """ Runs wrapper one time.
+        Args:
+            X_train/val: np.array, FeatureMatrix
+                Training/validation set of feature matrix to wrap.
+            y_train/val: np.array
+                Training/validation set of categorical outcomes (0/1).
         Returns:
             model: list,
                 selected clustered features yielding the highest accuracy.
@@ -296,12 +355,10 @@ class Wrapper:
         return model, np.concatenate(model), accuracy
 
     def wrapper(self, n_jobs=1):
-        """ Determines which cluster of features yield the highest accuracy score
+        """ Determines which cluster of features yield the highest accuracy score.
         Args:
-            n_rounds: int,
-                number of rounds you wish the the wrapper to run
             n_jobs: int,
-                number of jobs
+                number of jobs.
         Returns:
             output: dictionary,
                 model: np.array,
@@ -317,8 +374,10 @@ class Wrapper:
                         each wrapper run.
         """
         self.X = self.__check_X()
+        # Runs wrapper for n_fold runs parallel:
         if n_jobs != 1 and self.n_fold != 1:
             output = self._wrapper_parallel(n_jobs)
+        # Runs wrapper for n_fold times:
         else:
             output = {'model': [], 'features': [], 'accuracy': []}
             fold_rng = np.random.default_rng(self.fold_seed)
