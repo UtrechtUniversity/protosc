@@ -1,4 +1,5 @@
 from multiprocessing import Queue, cpu_count, Process
+from tqdm import tqdm
 
 
 def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
@@ -22,6 +23,7 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     results: list
         Unordered results of the computation.
     """
+    pbar = tqdm(total=len(jobs))
     if n_jobs is None:
         n_jobs = 1
     elif n_jobs == -1:
@@ -52,6 +54,7 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     results = []
     for _ in range(queue_size):
         results.append(result_queue.get())
+        pbar.update(1)
 
     for _ in range(n_jobs):
         job_queue.put(None)
@@ -62,6 +65,8 @@ def execute_parallel(jobs, target, n_jobs=-1, args=[], kwargs={}):
     for res in results:
         job_id = res[0]["job_id"]
         ordered_results[job_id] = res[1]
+
+    pbar.close()
 
     return ordered_results
 

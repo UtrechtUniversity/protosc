@@ -49,7 +49,9 @@ def test_select_clusters():
 
 def test_select_features():
     X, y, _ = create_simulation_data()
-    assert isinstance(select_features(X, y), list)
+    selected_features, clusters = select_features(X, y)
+    assert isinstance(selected_features, list)
+    assert isinstance(clusters, list)
 
 
 def test_filter_model():
