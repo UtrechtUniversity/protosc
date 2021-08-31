@@ -188,7 +188,7 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
     # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
     output_sel = []
 
-    np.random.seed()
+    np.random.seed(seed)
     for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
         X_train, y_train, X_val, y_val = cur_fold
 
