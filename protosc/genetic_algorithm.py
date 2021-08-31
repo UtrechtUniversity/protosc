@@ -219,11 +219,8 @@ class Population():
 
     def parallel_accuracy(self):
         """Compute the accuracy of all chromosomes in parallel."""
-        def compute_parallel_accuracy(X, y, chrom, n_compute=2):
-            return chrom.accuracy(X, y, n_compute)
-
         jobs = [{"chrom": chrom} for chrom in self.chromosomes]
-        return np.array(execute_parallel(jobs, compute_parallel_accuracy,
+        return np.array(execute_parallel(jobs, _compute_parallel_accuracy,
                                          args=(self.X, self.y)))
 
     def next_generation(self, pbar=None):
@@ -346,6 +343,10 @@ def genetic_algorithm(X, y, *args, n_data=3, n_random=100, **kwargs):
         y[i_row] = acc
         i_row += 1
     return arr_results, y
+
+
+def _compute_parallel_accuracy(X, y, chrom, n_compute=2):
+    return chrom.accuracy(X, y, n_compute)
 
 
 def compute_coefs(X_gen, y_gen, n_random=100):

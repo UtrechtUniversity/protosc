@@ -9,7 +9,6 @@ from sklearn.preprocessing import StandardScaler
 
 
 from protosc.feature_matrix import FeatureMatrix
-from tqdm import tqdm
 from protosc.final_selection import final_selection
 from protosc.parallel import execute_parallel
 
@@ -182,8 +181,6 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
 
     fold_rng = np.random.default_rng(fold_seed)
 
-    pbar = tqdm(total=n_fold)
-
     # Split data into 8 partitions: later use 1 partition as validating data,
     # other 7 as train data
 
@@ -208,26 +205,23 @@ def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
             X_val[:, selected_features], y_val)
         output_sel.append((selected_features, model_sel_output))
 
-        pbar.update(1)
-
-    pbar.close()
-
     return output_sel
+
+
+def _perform_filter_model(*args, **kwargs):
+    return filter_model(*args, **kwargs)
 
 
 def select_with_filter(X, y, *args, fold_seed=None, n_jobs=-1, **kwargs):
     if fold_seed is None:
         fold_seed = np.random.randint(1000000)
 
-    def perform_filter_model(*args, **kwargs):
-        return filter_model(*args, **kwargs)
-
     jobs = [{
         "seed": np.random.randint(0, 192837442),
         "null_distribution": i != 0}
             for i in range(101)]
 
-    all_results = execute_parallel(jobs, perform_filter_model,
+    all_results = execute_parallel(jobs, _perform_filter_model,
                                    args=(X, y, *args),
                                    kwargs={"fold_seed": fold_seed, **kwargs},
                                    progress_bar=True,
