@@ -1,8 +1,8 @@
 import numpy as np
-from protosc.feature_extraction import transform_matrix, HOGFeatures
-from protosc.feature_extraction import hog_features
-from protosc.feature_extraction import color_features
-from protosc.feature_extraction import pixel_features
+from protosc.feature_extraction.fourier_features import transform_matrix
+from protosc.feature_extraction.hog import hog_features, HOGFeatures
+from protosc.feature_extraction.color import color_features
+from protosc.feature_extraction.pixel import pixel_features
 # from protosc.feature_extraction import set_color_channels
 import pytest
 
@@ -12,7 +12,8 @@ import pytest
 def test_hog_features(orientations, hog_cellsize):
     hog = HOGFeatures(orientations=orientations, hog_cellsize=hog_cellsize)
     test_img = np.random.rand(200, 200, 3)
-    ref_grid_hog = hog._get_ref_func(test_img)[1]()
+    _, ref_func, ref_kwargs = hog._get_ref_func(test_img)
+    ref_grid_hog = ref_func(**ref_kwargs)
     hogs = hog._execute(test_img)
 
     assert hogs.shape[0] == (test_img.shape[0]/hog_cellsize[0])*(test_img.shape[1]/hog_cellsize[1])*orientations
