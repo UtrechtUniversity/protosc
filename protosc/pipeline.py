@@ -65,20 +65,30 @@ def sig_to_param(signature):
 
 
 class Plotter():
-    def __init__(self, name, ref_func, plot_func):
+    def __init__(self, name, ref_func, plot_func, ref_kwargs={}, plot_kwargs={}):
         self.ref_func = ref_func
         self.plot_func = plot_func
         self.name = name
         self._ref_data = None
+        self.ref_kwargs = ref_kwargs
+        self.plot_kwargs = plot_kwargs
 
     @property
     def ref_data(self):
         if self._ref_data is None:
-            self._ref_data = self.ref_func()
+            self._ref_data = self.ref_func(**self.ref_kwargs)
         return self._ref_data
 
     def plot(self, *args, **kwargs):
         self.plot_func(self.ref_data, *args, **kwargs)
+
+    @classmethod
+    def from_pipe_element(cls, pipe, package):
+        name, ref_func, ref_kwargs = pipe._get_ref_func(package)
+        if name is None:
+            return None
+        plot_func = pipe._plot_func
+        return cls(name, ref_func, plot_func, ref_kwargs=ref_kwargs)
 
 
 class BasePipeElement(ABC):
@@ -110,7 +120,7 @@ class BasePipeElement(ABC):
             return anything. Whatever it returns will be the the first argument
             to the plotting function, see _plot_func.
         """
-        return None
+        return None, None, None
 
     @property
     def _plot_func(self):
@@ -133,11 +143,13 @@ class BasePipeElement(ABC):
         if iterate:
             return [self.execute(part, new_max_depth) for part in package]
         new_package = self._execute(package)
-        ref_func = self._get_ref_func(package)
-        plot_func = self._plot_func
-        if plot_func is None:
+        plotter = Plotter.from_pipe_element(self, package)
+#         if 
+#         ref_func = self._get_ref_func(package)
+#         plot_func = self._plot_func
+        if plotter is None:
             return new_package
-        return new_package, Plotter(*ref_func, plot_func)
+        return new_package, plotter
 
     def __mul__(self, other):
         if isinstance(other, BasePipeElement):
