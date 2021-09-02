@@ -56,29 +56,9 @@ class FourierFeatures(BasePipeElement):
         }
         return name, ref_func, ref_kwargs
 
-#     def _get_ref_func(self, img):
-#         def ref_func():
-#             _, inv_matrix = transform_matrix(
-#                 img.shape, self.n_angular, self.n_spatial, return_inverse=True,
-#                 return_ids=False, cut_circle=self.cut_circle)
-#             inv_matrix.data[:] = 1
-#             return inv_matrix, img.shape
-#         return self.name + str(img.shape), ref_func
-
     @property
     def _plot_func(self):
         return fourier_plot_func
-
-#     @property
-#     def _plot_func(self):
-#         def plot(data, i_feature):
-#             inv_matrix, shape = data
-#             feature_vec = np.zeros((inv_matrix.shape[1], 1))
-#             feature_vec[i_feature] = 1
-#             img = inv_matrix.dot(feature_vec).reshape(shape[:2])
-#             plt.imshow(img, cmap="binary")
-#             plt.show()
-#         return plot
 
 
 def fourier_ref_func(img_shape, *args, **kwargs):
@@ -94,6 +74,7 @@ def fourier_plot_func(data, i_feature):
     img = inv_matrix.dot(feature_vec).reshape(shape[:2])
     plt.imshow(img, cmap="binary")
     plt.show()
+
 
 def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,
                      return_ids=False, cut_circle=True):
@@ -182,4 +163,3 @@ def fourier_features(img, *args, absolute=True, **kwargs):
     trans = transform_matrix(fft_map.shape, *args, return_inverse=False,
                              **kwargs)
     return trans.dot(fft_map.reshape(-1, fft_map.shape[2]))
-
