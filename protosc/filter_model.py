@@ -129,7 +129,8 @@ def create_clusters(features_sorted, X):
         cur_cluster.append(features_sorted[y_links[i_link]])
         feature_selected[y_links[i_link]] = True
     all_clusters.append(cur_cluster)
-    rest = [f for f in features_sorted if f not in np.concatenate(all_clusters)]
+    rest = [f for f in features_sorted
+            if f not in np.concatenate(all_clusters)]
     for feat in rest:
         all_clusters.append([feat])
     return all_clusters
