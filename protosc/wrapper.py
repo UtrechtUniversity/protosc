@@ -99,7 +99,7 @@ class Wrapper:
         if not model:
             selection = clusters[i]
         else:
-            selection = np.append(model, clusters[i])
+            selection = np.concatenate(model + [clusters[i]])
         return selection
 
     def __calc_accuracy(self, X_train, y_train, X_val, y_val, selection):
