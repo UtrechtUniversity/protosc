@@ -142,16 +142,18 @@ def compare_results(selected_features, ground_truth):
 #     print(f"Percentage of features found: "
 #           f"{n_correct_selected}/{n_total_features}")
 #     print(f"Percentage of bias found: {selected_bias/total_bias}")
-    output = {'%corr_feat': n_correct_selected/(n_correct_selected+n_false_selected), 
+    output = {'%corr_feat':
+              n_correct_selected/(n_correct_selected+n_false_selected),
               '%feat_found': n_correct_selected/n_total_features,
               '%bias_found': selected_bias/total_bias}
     return output
+
 
 def compare_models(models, ground_truth, mean=False):
     results = {}
     for model, model_res in models.items():
         output = []
-        try: 
+        try:
             for res in model_res['features']:
                 output.append(compare_results(res, ground_truth))
             accuracy = model_res['accuracy']
@@ -165,5 +167,3 @@ def compare_models(models, ground_truth, mean=False):
             result['mean_acc'] = np.mean(accuracy)
         results[f'{model}'] = result
     return results
-
-            
