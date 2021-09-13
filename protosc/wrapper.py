@@ -7,7 +7,7 @@ from protosc.parallel import execute_parallel
 class Wrapper:
     def __init__(self, X, y, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=4, fold_seed=None, cur_fold=None,
+                 stop=5, fold_seed=None, cur_fold=None,
                  verbose=False):
         """
         Args:
