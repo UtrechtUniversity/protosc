@@ -112,7 +112,10 @@ class PipeComplex():
         iterate, new_max_depth = get_new_level(package, max_depth)
         if iterate:
             return [self.execute(part, new_max_depth) for part in package]
+        else:
+            return self.execute_single(package)
 
+    def execute_single(self, package):
         # Use recursion to execute the whole complex tree.
         def get_result(cur_package, pipe_tree):
             results = {}

@@ -34,7 +34,7 @@ def final_selection(feature_accuracy, null_accuracy):
         for i_res in range(100):
             res.append(np.sum(
                 [null_accuracy[i_val][i_res] for i_val in occurences]))
-        if np.quantile(res, 0.99) < sum_res:
+        if np.max(res) < sum_res:
             signif_features.append(feature_id)
 
     return signif_features

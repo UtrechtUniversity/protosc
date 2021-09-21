@@ -12,10 +12,12 @@ def test_final_selection():
     X, y, truth = create_correlated_data(
         n_base_features=30, n_true_features=4, n_examples=300,
         n_feature_correlated=3)
-    feature_accuracy = filter_model(X, y, fold_seed=213874)
+    feature_accuracy = filter_model(X, y, fold_seed=213874, seed=28374122)
     null_accuracy = defaultdict(lambda: [])
-    for _ in range(100):
-        res = filter_model(X, y, fold_seed=213874, null_distribution=True)
+    seeds = np.random.randint(109812345, size=100)
+    for seed in seeds:
+        res = filter_model(X, y, fold_seed=213874, null_distribution=True,
+                           seed=seed)
         for i, val in enumerate(res):
             null_accuracy[i].append(val[1])
     null_accuracy = list(null_accuracy.values())

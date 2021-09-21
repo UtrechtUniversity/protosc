@@ -29,8 +29,8 @@ def test_greyscale():
 def test_VJ():
     vj = ViolaJones()
     vj2 = ViolaJones(add_perc=10)
-    assert vj.name == "ViolaJones_20"
-    assert vj2.name == "ViolaJones_10"
+    assert vj.name == "ViolaJones"
+    assert vj2.name == "ViolaJones_add_perc10"
     test_files = Path("tests", "data").glob("*.jpg")
     for test_fp in test_files:
         img = read_image(test_fp)

@@ -7,7 +7,8 @@ from protosc.parallel import execute_parallel
 class Wrapper:
     def __init__(self, X, y, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=4, fold_seed=None, cur_fold=None):
+                 stop=5, fold_seed=None, cur_fold=None,
+                 verbose=False):
         """
         Args:
             X: np.array, FeatureMatrix
@@ -47,6 +48,7 @@ class Wrapper:
         self.stop = stop
         self.fold_seed = fold_seed
         self.cur_fold = cur_fold
+        self.verbose = verbose
 
     def copy(self, cur_fold):
         return self.__class__(
@@ -97,7 +99,7 @@ class Wrapper:
         if not model:
             selection = clusters[i]
         else:
-            selection = np.append(model, clusters[i])
+            selection = np.concatenate(model + [clusters[i]])
         return selection
 
     def __calc_accuracy(self, X_train, y_train, X_val, y_val, selection):
@@ -139,8 +141,9 @@ class Wrapper:
         """
         selected.append(i)
         model = model + [clusters[i]]
-        print(f"""
-        added cluster {i}, new accuracy = {accuracy}""")
+        if self.verbose:
+            print(f"""
+                  added cluster {i}, new accuracy = {accuracy}""")
         return selected, model
 
     def __exclude(self, X_train, y_train, X_val, y_val,
@@ -164,40 +167,32 @@ class Wrapper:
         """
         exclude = []
         replace = {}
-        if self.excl and len(selected) > 1:
-            print("""
-            Trying to increase accuracy by removing/replacing clusters...
-            """)
-            for i in selected:
-                # check if removing cluster increases accuracy
-                rest = [x for x in selected if x != i and x not in exclude]
-                selection = np.concatenate(clusters)
-                selection = selection[rest]
-                accuracy_new = self.__calc_accuracy(
-                    X_train, y_train, X_val, y_val, selection)
-                if accuracy_new > accuracy:
-                    print(f"""
-                    Removed clusters {i}.
-                    Old accuracy: {accuracy}, new accuracy: {accuracy_new}.""")
-                    accuracy = accuracy_new
-                    exclude.append(i)
-                else:
-                    # check if replacing cluster with new cluster
-                    # increases accuracy
-                    search = [x for x in range(len(clusters))
-                              if x not in selected]
-                    search = search[:int(len(search)*self.search_space)]
-                    for j in search:
-                        selection = np.append(selection, clusters[i])
-                        accuracy_new = self.__calc_accuracy(
-                            X_train, y_train, X_val, y_val, selection)
-                        if accuracy_new > accuracy:
-                            print(f"""
-                            Replaced cluster {i} with {j}.
-                            Old accuracy: {accuracy}, new: {accuracy_new}.
-                            """)
-                            accuracy = accuracy_new
-                            replace.update({i: j})
+        if not self.excl or len(selected) <= 1:
+            return
+
+        for i in selected:
+            # check if removing cluster increases accuracy
+            rest = [x for x in selected if x != i and x not in exclude]
+            selection = np.concatenate(clusters)
+            selection = selection[rest]
+            accuracy_new = self.__calc_accuracy(
+                X_train, y_train, X_val, y_val, selection)
+            if accuracy_new > accuracy:
+                accuracy = accuracy_new
+                exclude.append(i)
+            else:
+                # check if replacing cluster with new cluster
+                # increases accuracy
+                search = [x for x in range(len(clusters))
+                          if x not in selected]
+                search = search[:int(len(search)*self.search_space)]
+                for j in search:
+                    selection = np.append(selection, clusters[i])
+                    accuracy_new = self.__calc_accuracy(
+                        X_train, y_train, X_val, y_val, selection)
+                    if accuracy_new > accuracy:
+                        accuracy = accuracy_new
+                        replace.update({i: j})
         if exclude:
             selected = [x for x in selected if x not in exclude]
             return selected, accuracy_new
@@ -218,7 +213,8 @@ class Wrapper:
             updated not_added
         """
         if added == 0:
-            print("nothing added")
+            if self.verbose:
+                print("nothing added")
             not_added += 1
         return not_added
 
@@ -259,7 +255,8 @@ class Wrapper:
         jobs = [{"wrapper": self.copy(cur_fold)} for cur_fold in self.X.kfold(
             self.y, k=self.n_fold, rng=fold_rng)]
 
-        results = execute_parallel(jobs, wrapper_exec, n_jobs=n_jobs)
+        results = execute_parallel(jobs, wrapper_exec, n_jobs=n_jobs,
+                                   progress_bar=True)
 
         output['model'] = [r[0] for r in results]
         output['features'] = [r[1] for r in results]
@@ -299,9 +296,6 @@ class Wrapper:
             # If there were no features added in n rounds, stop searching
             added = 0
             if not_added == self.stop:
-                print(f"""
-                No features were added in {self.stop} rounds.
-                Stop searching for new clusters.""")
                 break
             # If current cluster has already been selected, go to next
             elif cluster in selected:

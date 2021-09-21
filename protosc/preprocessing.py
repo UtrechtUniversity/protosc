@@ -32,10 +32,6 @@ class ViolaJones(BasePipeElement):
     def _execute(self, img):
         return viola_jones(img, add_perc=self.add_perc)
 
-    @property
-    def name(self):
-        return super(ViolaJones, self).name + f"_{self.add_perc}"
-
 
 class CutCircle(BasePipeElement):
     def _execute(self, img):
