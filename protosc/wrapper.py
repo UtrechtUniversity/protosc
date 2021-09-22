@@ -5,7 +5,7 @@ from protosc.parallel import execute_parallel
 
 
 class Wrapper:
-    def __init__(self, X, y, n_fold=8, search_space=0.15,
+    def __init__(self, X, y, n=25, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
                  stop=5, fold_seed=None, cur_fold=None,
                  verbose=False):
@@ -15,6 +15,8 @@ class Wrapper:
                 Feature matrix to wrap.
             y: np.array
                 Outcomes, categorical (0/1).
+            n: int
+                maximum number of features to use for SVM
             decrease: boolean
                 if True clusters are ranked from high to low chi-square scores,
                 if False clusters are ranked from from low to high.
@@ -40,6 +42,7 @@ class Wrapper:
         """
         self.X = X
         self.y = y
+        self.n = n
         self.n_fold = n_fold
         self.search_space = search_space
         self.decrease = decrease
@@ -52,12 +55,12 @@ class Wrapper:
 
     def copy(self, cur_fold):
         return self.__class__(
-            X=self.X, y=self.y, n_fold=self.n_fold,
+            X=self.X, y=self.y, n=self.n, n_fold=self.n_fold,
             search_space=self.search_space, decrease=self.decrease,
             add_im=self.add_im, excl=self.excl, stop=self.stop,
             fold_seed=self.fold_seed,
             cur_fold=cur_fold
-            )
+        )
 
     def __check_X(self):
         """ Ensure X is indeed FeatureMatrix.
@@ -295,7 +298,11 @@ class Wrapper:
         for cluster in cluster_order:
             # If there were no features added in n rounds, stop searching
             added = 0
-            if not_added == self.stop:
+            try:
+                features = len(np.concatenate(model))
+            except ValueError:
+                features = 0
+            if not_added == self.stop or features >= self.n:
                 break
             # If current cluster has already been selected, go to next
             elif cluster in selected:
