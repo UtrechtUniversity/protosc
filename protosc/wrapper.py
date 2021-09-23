@@ -7,8 +7,7 @@ from protosc.parallel import execute_parallel
 class Wrapper:
     def __init__(self, X, y, n=25, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=5, fold_seed=None, cur_fold=None,
-                 verbose=False):
+                 stop=5, fold_seed=None, cur_fold=None):
         """
         Args:
             X: np.array, FeatureMatrix
@@ -51,7 +50,6 @@ class Wrapper:
         self.stop = stop
         self.fold_seed = fold_seed
         self.cur_fold = cur_fold
-        self.verbose = verbose
 
     def copy(self, cur_fold):
         return self.__class__(
@@ -99,7 +97,7 @@ class Wrapper:
             selection: np.array,
                 new selection of clustered features.
         """
-        if not model:
+        if model == 0:
             selection = clusters[i]
         else:
             selection = np.concatenate(model + [clusters[i]])
@@ -143,10 +141,10 @@ class Wrapper:
                 new selection of cluster indeces.
         """
         selected.append(i)
-        model = model + [clusters[i]]
-        if self.verbose:
-            print(f"""
-                  added cluster {i}, new accuracy = {accuracy}""")
+        if model == 0:
+            model = [clusters[i]]
+        else:
+            model = model + [clusters[i]]
         return selected, model
 
     def __exclude(self, X_train, y_train, X_val, y_val,
@@ -216,28 +214,8 @@ class Wrapper:
             updated not_added
         """
         if added == 0:
-            if self.verbose:
-                print("nothing added")
             not_added += 1
         return not_added
-
-    def __matching(self, output):
-        """ Find features that occur in each run (i.e., n_fold).
-        Args:
-            output: dict,
-                contains models, clusters, and accuracy scores
-                of all wrapper runs.
-        Returns:
-            rec_features: list,
-                features that occur in each wrapper run.
-        """
-        all_runs = self.n_fold
-        all_features = [f for feat in output['features'] for f in feat]
-        rec_features = []
-        for x in set(all_features):
-            if all_features.count(x) == all_runs:
-                rec_features.append(x)
-        return rec_features
 
     def _wrapper_parallel(self, n_jobs=-1):
         """ Runs wrapper n_rounds times in parallel
@@ -267,7 +245,7 @@ class Wrapper:
 
         return output
 
-    def _wrapper_once(self, X_train, y_train, X_val, y_val):
+    def _wrapper_once(self, cur_fold):
         """ Runs wrapper one time.
         Args:
             X_train/val: np.array, FeatureMatrix
@@ -279,18 +257,15 @@ class Wrapper:
                 selected clustered features yielding the highest accuracy.
             features: np.array,
                 selected features yielding the highest accuracy scores.
-            clusters: list,
-                indeces of selected clusters.
             accuracy: float,
                 final (and highest) yielded accuracy of model.
         """
         # Define output variables
         selected = []
-        model = []
-        not_added = 0
-        accuracy = 0
+        not_added = accuracy = model = 0
 
         # Define search order
+        X_train, y_train, X_val, y_val = cur_fold
         _, clusters = select_features(X_train, y_train)
         cluster_order = self.__cluster_order(clusters)
 
@@ -300,12 +275,12 @@ class Wrapper:
             added = 0
             try:
                 features = len(np.concatenate(model))
-            except ValueError:
+            except TypeError:
                 features = 0
             if not_added == self.stop or features >= self.n:
                 break
             # If current cluster has already been selected, go to next
-            elif cluster in selected:
+            if cluster in selected:
                 continue
 
             # Determine search space
@@ -366,13 +341,8 @@ class Wrapper:
                     selected clustered features yielding the highest accuracy.
                 features: np.array,
                     selected features yielding the highest accuracy scores.
-                clusters: list,
-                    indeces of selected clusters.
                 accuracy: float,
                     final (and highest) yielded accuracy of model.
-                recurring: list,
-                    if multiple wrapper runs: cluster indeces that occur in
-                        each wrapper run.
         """
         self.X = self.__check_X()
         # Runs wrapper for n_fold runs parallel:
@@ -389,13 +359,9 @@ class Wrapper:
                 output['model'].append(model)
                 output['features'].append(features)
                 output['accuracy'].append(accuracy)
-
-        if self.n_fold > 1:
-            output['recurring'] = self.__matching(output)
-
         return output
 
 
 def wrapper_exec(wrapper):
-    X_train, y_train, X_val, y_val = wrapper.cur_fold
-    return wrapper._wrapper_once(X_train, y_train, X_val, y_val)
+    cur_fold = wrapper.cur_fold
+    return wrapper._wrapper_once(cur_fold)
