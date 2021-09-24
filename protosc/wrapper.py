@@ -149,20 +149,6 @@ class Wrapper:
                     selection = new_selection
         return selection, accuracy
 
-    def __empty_round(self, added, not_added):
-        """ Update number of round no new clusters were added.
-        Args:
-            added: int,
-                number of clusters added in that specific round.
-            not_added: int,
-                total rounds no new clusters were added.
-        Returns:
-            updated not_added
-        """
-        if added == 0:
-            not_added += 1
-        return not_added
-
     def _wrapper_parallel(self, n_jobs=-1):
         """ Runs wrapper n_rounds times in parallel
         Args:
