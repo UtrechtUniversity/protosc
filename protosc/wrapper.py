@@ -259,7 +259,7 @@ class Wrapper:
                 i_max_accuracy = i_cluster
                 max_accuracy = new_accuracy
         if max_accuracy > cur_accuracy:
-            return cur_selection + i_max_accuracy
+            return cur_selection + i_max_accuracy, max_accuracy
         return cur_selection, max_accuracy
 
     def wrapper(self, n_jobs=1):
