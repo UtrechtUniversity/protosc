@@ -47,7 +47,7 @@ def find_recurring(n_fold, output):
 def run_models(X, y,
                cur_fold,
                selected_features, clusters):
-    """ Run every model for current fold 
+    """ Run every model for current fold
     Args:
         X: np.array, FeatureMatrix
             Feature matrix to wrap.
