@@ -59,5 +59,5 @@ def test_wrapper():
     __test_model(output)
     __test_features(output)
     __test_accuracy(output)
-    if N_FOLD > 1:
-        __test_recurring(output)
+    # if N_FOLD > 1:
+    #    __test_recurring(output)

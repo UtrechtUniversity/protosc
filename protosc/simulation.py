@@ -94,7 +94,9 @@ def slightly_correlated_data(n_features=100, n_examples=500, sigma=1):
 def create_categorical_data(n_features=500, n_examples=500,
                             n_true_features=25,
                             min_dev=0.25, max_dev=0.5,
-                            n_categories=5):
+                            n_categories=5,
+                            seed=1234):
+    np.random.seed(seed)
     y = (n_categories*np.arange(n_examples)/n_examples).astype(int)
     split_y = []
     for cat in range(n_categories):
@@ -137,11 +139,6 @@ def compare_results(selected_features, ground_truth):
     n_total_features = len(ground_truth["selected_features"])
     n_correct_selected = np.sum(ground_truth["biases"][selected_features] != 0)
     n_false_selected = np.sum(ground_truth["biases"][selected_features] == 0)
-#     print(f"Percentage of features correct: "
-#           f"{n_correct_selected}/{(n_correct_selected+n_false_selected)}")
-#     print(f"Percentage of features found: "
-#           f"{n_correct_selected}/{n_total_features}")
-#     print(f"Percentage of bias found: {selected_bias/total_bias}")
     output = {'%corr_feat':
               n_correct_selected/(n_correct_selected+n_false_selected),
               '%feat_found': n_correct_selected/n_total_features,
@@ -153,15 +150,9 @@ def compare_models(models, ground_truth, mean=False):
     results = {}
     for model, model_res in models.items():
         output = []
-        try:
-            for res in model_res['features']:
-                output.append(compare_results(res, ground_truth))
-            accuracy = model_res['accuracy']
-        except TypeError:
-            accuracy = []
-            for res in model_res:
-                output.append(compare_results(res[0], ground_truth))
-                accuracy.append(res[1])
+        for res in model_res['features']:
+            output.append(compare_results(res, ground_truth))
+        accuracy = model_res['accuracy']
         result = {k: np.mean([d[k] for d in output]) for k in output[0]}
         if mean:
             result['mean_acc'] = np.mean(accuracy)

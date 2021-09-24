@@ -2,19 +2,21 @@ import numpy as np
 from protosc.filter_model import train_xvalidate, select_features
 from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
+from copy import deepcopy
 
 
 class Wrapper:
-    def __init__(self, X, y, n_fold=8, search_space=0.15,
+    def __init__(self, X, y, n=25, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=5, fold_seed=None, cur_fold=None,
-                 verbose=False):
+                 stop=5, fold_seed=None, cur_fold=None):
         """
         Args:
             X: np.array, FeatureMatrix
                 Feature matrix to wrap.
             y: np.array
                 Outcomes, categorical (0/1).
+            n: int
+                maximum number of features to use for SVM
             decrease: boolean
                 if True clusters are ranked from high to low chi-square scores,
                 if False clusters are ranked from from low to high.
@@ -40,6 +42,7 @@ class Wrapper:
         """
         self.X = X
         self.y = y
+        self.n = n
         self.n_fold = n_fold
         self.search_space = search_space
         self.decrease = decrease
@@ -48,16 +51,15 @@ class Wrapper:
         self.stop = stop
         self.fold_seed = fold_seed
         self.cur_fold = cur_fold
-        self.verbose = verbose
 
     def copy(self, cur_fold):
         return self.__class__(
-            X=self.X, y=self.y, n_fold=self.n_fold,
+            X=self.X, y=self.y, n=self.n, n_fold=self.n_fold,
             search_space=self.search_space, decrease=self.decrease,
             add_im=self.add_im, excl=self.excl, stop=self.stop,
             fold_seed=self.fold_seed,
             cur_fold=cur_fold
-            )
+        )
 
     def __check_X(self):
         """ Ensure X is indeed FeatureMatrix.
@@ -83,25 +85,6 @@ class Wrapper:
             cluster_order = reversed(range(len(clusters)))
         return cluster_order
 
-    def __selection(self, clusters, model, i):
-        """ Append model with selected cluster.
-        Args:
-            clusters: np.array,
-                clustered features.
-            model: list,
-                current selection of clustered features.
-            i: int,
-                index of newly selected cluster.
-        Returns:
-            selection: np.array,
-                new selection of clustered features.
-        """
-        if not model:
-            selection = clusters[i]
-        else:
-            selection = np.concatenate(model + [clusters[i]])
-        return selection
-
     def __calc_accuracy(self, X_train, y_train, X_val, y_val, selection):
         """ Calculates the average accuracy score of the selected features over n_folds
         Args:
@@ -116,38 +99,11 @@ class Wrapper:
                 average accuracy score over n_folds.
         """
         accuracy = train_xvalidate(
-            X_train[:, selection], y_train, X_val[:, selection],
-            y_val)
+            X_train[:, selection.features], y_train,
+            X_val[:, selection.features], y_val)
         return accuracy
 
-    def __update_model(self, selected, model, clusters, i, accuracy):
-        """ Append selected with selected cluster.
-        Args:
-            selected: list,
-                list of selected cluster indeces leading to increased accuracy
-            model: list,
-                current selection of clustered features.
-            clusters: np.array,
-                clustered features.
-            i: int,
-                index of newly selected cluster.
-            accuracy: float,
-                accuracy of new model.
-        Returns:
-            model: np.array,
-                new selection of clustered features.
-            selected: list,
-                new selection of cluster indeces.
-        """
-        selected.append(i)
-        model = model + [clusters[i]]
-        if self.verbose:
-            print(f"""
-                  added cluster {i}, new accuracy = {accuracy}""")
-        return selected, model
-
-    def __exclude(self, X_train, y_train, X_val, y_val,
-                  selected, clusters, accuracy):
+    def _remove_procedure(self, fold, selection, accuracy):
         """ Tries to increase accuracy of selected model by removing/replacing clusters
         Args:
             X_train/val: np.array, FeatureMatrix
@@ -166,75 +122,32 @@ class Wrapper:
                 clusters & new highest accuracy).
         """
         exclude = []
-        replace = {}
-        if not self.excl or len(selected) <= 1:
-            return
+        if not self.excl or len(selection) <= 1:
+            return selection, accuracy
 
-        for i in selected:
+        for i_cluster in selection.clusters:
             # check if removing cluster increases accuracy
-            rest = [x for x in selected if x != i and x not in exclude]
-            selection = np.concatenate(clusters)
-            selection = selection[rest]
+            exclude_selection = selection - i_cluster
             accuracy_new = self.__calc_accuracy(
-                X_train, y_train, X_val, y_val, selection)
+                *fold, exclude_selection)
             if accuracy_new > accuracy:
                 accuracy = accuracy_new
-                exclude.append(i)
+                exclude.append(i_cluster)
+                selection = exclude_selection
             else:
                 # check if replacing cluster with new cluster
                 # increases accuracy
-                search = [x for x in range(len(clusters))
-                          if x not in selected]
-                search = search[:int(len(search)*self.search_space)]
-                for j in search:
-                    selection = np.append(selection, clusters[i])
-                    accuracy_new = self.__calc_accuracy(
-                        X_train, y_train, X_val, y_val, selection)
-                    if accuracy_new > accuracy:
-                        accuracy = accuracy_new
-                        replace.update({i: j})
-        if exclude:
-            selected = [x for x in selected if x not in exclude]
-            return selected, accuracy_new
-        if replace:
-            for x in range(len(selected)):
-                if selected[x] in replace:
-                    selected[x] = replace[selected[x]]
-            return selected, accuracy_new
-
-    def __empty_round(self, added, not_added):
-        """ Update number of round no new clusters were added.
-        Args:
-            added: int,
-                number of clusters added in that specific round.
-            not_added: int,
-                total rounds no new clusters were added.
-        Returns:
-            updated not_added
-        """
-        if added == 0:
-            if self.verbose:
-                print("nothing added")
-            not_added += 1
-        return not_added
-
-    def __matching(self, output):
-        """ Find features that occur in each run (i.e., n_fold).
-        Args:
-            output: dict,
-                contains models, clusters, and accuracy scores
-                of all wrapper runs.
-        Returns:
-            rec_features: list,
-                features that occur in each wrapper run.
-        """
-        all_runs = self.n_fold
-        all_features = [f for feat in output['features'] for f in feat]
-        rec_features = []
-        for x in set(all_features):
-            if all_features.count(x) == all_runs:
-                rec_features.append(x)
-        return rec_features
+                candidates = selection.search_space(
+                    self.search_space,
+                    exclude=exclude)
+                new_selection, new_accuracy = self._add_clusters_max(
+                    candidates, exclude_selection, accuracy, fold)
+                diff_selection = new_selection - exclude_selection
+                if len(diff_selection):
+                    accuracy = new_accuracy
+                    exclude.extend([i_cluster, diff_selection.clusters[0]])
+                    selection = new_selection
+        return selection, accuracy
 
     def _wrapper_parallel(self, n_jobs=-1):
         """ Runs wrapper n_rounds times in parallel
@@ -264,7 +177,7 @@ class Wrapper:
 
         return output
 
-    def _wrapper_once(self, X_train, y_train, X_val, y_val):
+    def _wrapper_once(self, cur_fold):
         """ Runs wrapper one time.
         Args:
             X_train/val: np.array, FeatureMatrix
@@ -276,77 +189,78 @@ class Wrapper:
                 selected clustered features yielding the highest accuracy.
             features: np.array,
                 selected features yielding the highest accuracy scores.
-            clusters: list,
-                indeces of selected clusters.
             accuracy: float,
                 final (and highest) yielded accuracy of model.
         """
         # Define output variables
-        selected = []
-        model = []
-        not_added = 0
+        n_not_added = 0
         accuracy = 0
 
         # Define search order
+        X_train, y_train, _X_val, _y_val = cur_fold
         _, clusters = select_features(X_train, y_train)
         cluster_order = self.__cluster_order(clusters)
+        selection = ClusteredSelection(clusters)
 
         # Find clusters that increase accuracy
         for cluster in cluster_order:
             # If there were no features added in n rounds, stop searching
-            added = 0
-            if not_added == self.stop:
+            if n_not_added == self.stop or len(selection.features) >= self.n:
                 break
             # If current cluster has already been selected, go to next
-            elif cluster in selected:
+            if cluster in selection.clusters:
                 continue
 
             # Determine search space
-            rest = [x for x in cluster_order
-                    if x not in selected]
-            rest = rest[:int(len(rest)*self.search_space)]
+            search_space = selection.search_space(self.search_space)
 
-            # Look in search space for clusters that increase accuracy
-            for i in rest:
-                selection = self.__selection(clusters, model, i)
-                accuracy_new = self.__calc_accuracy(
-                    X_train, y_train, X_val, y_val, selection)
-
-                # If accuracy is increased; update accuracy
-                # and save cluster
-                if accuracy_new > accuracy:
-                    added += 1
-                    not_added = 0
-                    sel_feature = i
-                    accuracy = accuracy_new
-
-                    # If 'add immediately'; add said cluster to model
-                    # immediately continue with this model for adding
-                    # new clusters
-                    if self.add_im:
-                        selected, model = self.__update_model(selected, model,
-                                                              clusters, i,
-                                                              accuracy)
-
-            # Only add cluster resulting in highest increase to model
-            if self.add_im is False and added > 0:
-                selected, model = self.__update_model(selected, model,
-                                                      clusters, sel_feature,
-                                                      accuracy)
-
-            # If no clusters were added; increase 'not_added'
-            # stopping value
-            not_added = self.__empty_round(added, not_added)
-
+            # TODO: check if this is what is actually wanted!
+            if self.add_im:
+                new_selection, new_accuracy = self._add_clusters_direct(
+                    search_space, selection, accuracy, cur_fold)
+            else:
+                new_selection, new_accuracy = self._add_clusters_max(
+                    search_space, selection, accuracy, cur_fold)
+            n_added = len(new_selection) - len(selection)
+            if n_added:
+                n_not_added = 0
+            else:
+                n_not_added += 1
+            selection, accuracy = new_selection, new_accuracy
         # Remove clusters
-        try:
-            selected, accuracy = self.__exclude(X_train, y_train, X_val, y_val,
-                                                selected, clusters, accuracy)
-            model = np.array(clusters)[selected]
-        except TypeError:
-            pass
+        selection, accuracy = self._remove_procedure(
+            cur_fold, selection, accuracy)
+        return selection.clustered_features, np.array(
+            selection.features, dtype=int), accuracy
 
-        return model, np.concatenate(model), accuracy
+    def _add_clusters_direct(self, candidates, cur_selection,
+                             cur_accuracy, fold):
+        max_accuracy = cur_accuracy
+        # Look in search space for clusters that increase accuracy
+        for i_cluster in candidates:
+            new_selection = cur_selection+i_cluster
+            new_accuracy = self.__calc_accuracy(*fold, new_selection)
+
+            # If accuracy is increased; update accuracy
+            # and save cluster
+            if new_accuracy > max_accuracy:
+                cur_selection = new_selection
+                max_accuracy = new_accuracy
+        return cur_selection, max_accuracy
+
+    def _add_clusters_max(self, candidates, cur_selection,
+                          cur_accuracy, fold):
+        max_accuracy = cur_accuracy
+        i_max_accuracy = -1
+        for i_cluster in candidates:
+            new_selection = cur_selection + i_cluster
+            new_accuracy = self.__calc_accuracy(*fold, new_selection)
+            if new_accuracy > max_accuracy:
+                i_max_accuracy = i_cluster
+                max_accuracy = new_accuracy
+        if max_accuracy > cur_accuracy:
+            return cur_selection + i_max_accuracy, max_accuracy
+        return cur_selection, max_accuracy
 
     def wrapper(self, n_jobs=1):
         """ Determines which cluster of features yield the highest accuracy score.
@@ -359,13 +273,8 @@ class Wrapper:
                     selected clustered features yielding the highest accuracy.
                 features: np.array,
                     selected features yielding the highest accuracy scores.
-                clusters: list,
-                    indeces of selected clusters.
                 accuracy: float,
                     final (and highest) yielded accuracy of model.
-                recurring: list,
-                    if multiple wrapper runs: cluster indeces that occur in
-                        each wrapper run.
         """
         self.X = self.__check_X()
         # Runs wrapper for n_fold runs parallel:
@@ -376,19 +285,61 @@ class Wrapper:
             output = {'model': [], 'features': [], 'accuracy': []}
             fold_rng = np.random.default_rng(self.fold_seed)
             for cur_fold in self.X.kfold(self.y, k=self.n_fold, rng=fold_rng):
-                X_train, y_train, X_val, y_val = cur_fold
-                model, features, accuracy = self._wrapper_once(
-                    X_train, y_train, X_val, y_val)
+                model, features, accuracy = self._wrapper_once(cur_fold)
                 output['model'].append(model)
                 output['features'].append(features)
                 output['accuracy'].append(accuracy)
-
-        if self.n_fold > 1:
-            output['recurring'] = self.__matching(output)
-
         return output
 
 
 def wrapper_exec(wrapper):
-    X_train, y_train, X_val, y_val = wrapper.cur_fold
-    return wrapper._wrapper_once(X_train, y_train, X_val, y_val)
+    cur_fold = wrapper.cur_fold
+    return wrapper._wrapper_once(cur_fold)
+
+
+class ClusteredSelection():
+    def __init__(self, all_clusters, init_clusters=[]):
+        self.all_clusters = all_clusters
+        self.clusters = init_clusters
+
+    @property
+    def features(self):
+        cur_features = []
+        for i_cluster in self.clusters:
+            cur_features.extend(self.all_clusters[i_cluster])
+        return cur_features
+
+    @property
+    def clustered_features(self):
+        cur_features = []
+        for i_cluster in self.clusters:
+            cur_features.append(self.all_clusters[i_cluster])
+        return cur_features
+
+    def search_space(self, search_fraction, exclude=[]):
+        search = [x for x in range(len(self.all_clusters))
+                  if x not in self.clusters and x not in exclude]
+        # TODO: is this wanted?
+        search = search[:int(len(search)*search_fraction)]
+        return search
+
+    def copy(self):
+        return self.__class__(self.all_clusters, deepcopy(self.clusters))
+
+    def __add__(self, i_cluster):
+        copy = self.copy()
+        copy.clusters.append(i_cluster)
+        return copy
+
+    def __sub__(self, i_cluster):
+        if isinstance(i_cluster, ClusteredSelection):
+            diff_clusters = set(self.clusters) - set(i_cluster)
+            copy = self.copy()
+            copy.clusters = diff_clusters
+        else:
+            copy = self.copy()
+            copy.clusters.remove(i_cluster)
+        return copy
+
+    def __len__(self):
+        return len(self.clusters)
