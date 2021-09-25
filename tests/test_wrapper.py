@@ -1,6 +1,6 @@
 """ Tests wrapper method """
 
-from protosc.wrapper import Wrapper
+from protosc.model.wrapper import Wrapper
 from protosc.simulation import create_correlated_data
 import numpy as np
 
@@ -17,30 +17,28 @@ def __create_data():
 
 def __run_wrapper():
     X, y = __create_data()
-    fast = Wrapper(X, y, n_fold=N_FOLD, add_im=ADD_IM, fold_seed=FOLD_SEED)
-    output = fast.wrapper(n_jobs=-1)
-    return output
+    return Wrapper(n_fold=N_FOLD, add_im=ADD_IM).execute(
+        X, y, fold_seed=FOLD_SEED)
 
 
 def __test_model(output):
-    model = output['model']
-    assert isinstance(model, list)
-    assert len(model) == N_FOLD
-    assert all([isinstance(i, list) for i in model])
+    assert isinstance(output, list)
+    assert len(output) == N_FOLD
+    assert all([isinstance(i, dict) for i in output])
 
 
 def __test_features(output):
-    features = output['features']
+    features = [x["features"] for x in output]
     assert isinstance(features, list)
     assert len(features) == N_FOLD
-    assert all([isinstance(i, np.ndarray) for i in features])
+    assert all([isinstance(i, (np.ndarray, list)) for i in features])
     assert all([len(
             np.unique(features[i])) == len(features[i]) for i in range(N_FOLD)
             ])
 
 
 def __test_accuracy(output):
-    accuracy = output['accuracy']
+    accuracy = [x["accuracy"] for x in output]
     assert isinstance(accuracy, list)
     assert len(accuracy) == N_FOLD
     assert all([isinstance(i, float) for i in accuracy])
@@ -59,5 +57,3 @@ def test_wrapper():
     __test_model(output)
     __test_features(output)
     __test_accuracy(output)
-    # if N_FOLD > 1:
-    #    __test_recurring(output)

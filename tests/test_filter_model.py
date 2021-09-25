@@ -1,5 +1,7 @@
 import numpy as np
-from protosc.filter_model import train_xvalidate, create_clusters, select_features, filter_model
+
+from protosc.model.utils import train_xvalidate, create_clusters, select_features
+from protosc.model.filter import FilterModel
 from protosc.simulation import create_correlated_data, create_simulation_data
 from protosc.feature_matrix import FeatureMatrix
 
@@ -57,5 +59,5 @@ def test_select_features():
 def test_filter_model():
     X, y, _ = create_simulation_data()
     X[:10, 0] = 1
-    output = filter_model(X, y)
+    output = FilterModel().execute(X, y)
     assert isinstance(output, list)

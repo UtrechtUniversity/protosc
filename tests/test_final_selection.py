@@ -3,8 +3,8 @@ from collections import defaultdict
 import numpy as np
 
 from protosc.simulation import create_correlated_data
-from protosc.filter_model import filter_model
-from protosc.final_selection import final_selection
+from protosc.model import FilterModel
+from protosc.model.final_selection import final_selection
 
 
 def test_final_selection():
@@ -12,14 +12,14 @@ def test_final_selection():
     X, y, truth = create_correlated_data(
         n_base_features=30, n_true_features=4, n_examples=300,
         n_feature_correlated=3)
-    feature_accuracy = filter_model(X, y, fold_seed=213874, seed=28374122)
+    feature_accuracy = FilterModel().execute(X, y, fold_seed=213874, seed=28374122)
     null_accuracy = defaultdict(lambda: [])
     seeds = np.random.randint(109812345, size=100)
     for seed in seeds:
-        res = filter_model(X, y, fold_seed=213874, null_distribution=True,
-                           seed=seed)
+        res = FilterModel(null_distribution=True).execute(X, y, fold_seed=213874,
+                                                          seed=seed)
         for i, val in enumerate(res):
-            null_accuracy[i].append(val[1])
+            null_accuracy[i].append(val["accuracy"])
     null_accuracy = list(null_accuracy.values())
 
     feature_selection = final_selection(feature_accuracy, null_accuracy)

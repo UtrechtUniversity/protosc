@@ -1,11 +1,13 @@
-from protosc.genetic_algorithm import Chromosome, compute_significant_features
-
-from pytest import mark
-from protosc.simulation import create_simulation_data
 from copy import deepcopy
-from protosc.genetic_algorithm import genetic_algorithm
-from protosc.genetic_algorithm import compute_coefs
+
 import numpy as np
+from pytest import mark
+
+from protosc.simulation import create_simulation_data
+from protosc.model.genetic import genetic_algorithm
+from protosc.model.genetic import compute_coefs
+from protosc.model.genetic import Chromosome, compute_significant_features
+
 
 @mark.parametrize(
     "n_examples,n_features", [
@@ -17,7 +19,9 @@ import numpy as np
 )
 def test_chromosome(n_examples, n_features):
     n_true_features = n_features // 2
-    X, y, _ = create_simulation_data(n_examples=n_examples, n_features=n_features, n_true_features=n_true_features)
+    X, y, _ = create_simulation_data(n_examples=n_examples,
+                                     n_features=n_features,
+                                     n_true_features=n_true_features)
     for _ in range(5):
         chrom = Chromosome.random(n_features, n_features//2)
         acc = chrom.accuracy(X, y, n_test=10)
