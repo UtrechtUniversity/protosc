@@ -191,8 +191,6 @@ class Wrapper(BaseModel):
             "features": selection.features,
             "accuracy": accuracy,
         }
-#         return selection.clustered_features, np.array(
-#             selection.features, dtype=int), accuracy
 
     def _add_clusters_direct(self, candidates, cur_selection,
                              cur_accuracy, fold):
