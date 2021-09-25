@@ -14,6 +14,9 @@ class FilterModel():
         self.n_fold = n_fold
         self.null_distribution = null_distribution
 
+    def copy(self):
+        return self.__class__(self.n_fold, self.null_distribution)
+
     def _execute_fold(self, fold):
         X_train, y_train, X_val, y_val = fold
 
