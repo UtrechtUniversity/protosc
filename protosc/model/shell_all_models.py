@@ -1,28 +1,11 @@
-from protosc.wrapper import Wrapper
-from protosc.filter_model import train_xvalidate, select_features
+import numpy as np
+
+from protosc.model.utils import select_features, compute_accuracy
+from protosc.model.wrapper import Wrapper
 from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
-import numpy as np
-import random
-
-
-def calc_accuracy(cur_fold, selected_features):
-    """ Train an SVM on the train set while using the n selected features,
-    crossvalidate on holdout (X/y_val)
-    Args:
-        cur_fold: tuple,
-            contains X_train, y_train, X_val, y_val for current fold.
-        selected_features: list,
-            index of selected features used to train the SVM.
-    Returns:
-        output: int,
-            returns accuracy of trained SVM.
-    """
-    X_train, y_train, X_val, y_val = cur_fold
-    output = train_xvalidate(
-        X_train[:, selected_features], y_train,
-        X_val[:, selected_features], y_val)
-    return output
+from protosc.model.random import RandomModel
+from protosc.model.pseudo_random import PseudoRandomModel
 
 
 def find_recurring(n_fold, output):
@@ -44,9 +27,7 @@ def find_recurring(n_fold, output):
     return rec_features
 
 
-def run_models(X, y,
-               cur_fold,
-               selected_features, clusters):
+def run_models(cur_fold, selected_features, clusters):
     """ Run every model for current fold
     Args:
         X: np.array, FeatureMatrix
@@ -68,56 +49,36 @@ def run_models(X, y,
     output = {}
 
     # Filtermodel
-    filter_out = calc_accuracy(cur_fold, selected_features)
+    filter_accuracy = compute_accuracy(cur_fold, selected_features)
     output['filter'] = {'features': selected_features,
-                        'accuracy': filter_out}
+                        'accuracy': filter_accuracy}
 
     # Wrapper fast
-    fast = Wrapper(X, y, n=len(selected_features), stop=10, add_im=True)
-    wrapper_out = fast._wrapper_once(cur_fold)
-    output['fast_wrapper'] = {'features': wrapper_out[1],
-                              'accuracy': wrapper_out[2]}
+    fast_wrapper = Wrapper(n=len(selected_features), stop=10, add_im=True)
+    output['fast_wrapper'] = fast_wrapper._execute_fold(cur_fold)
 
     # Wrapper slow
-    slow = Wrapper(X, y, n=len(selected_features), stop=10, add_im=False)
-    wrapper_out_slow = slow._wrapper_once(cur_fold)
-    output['slow_wrapper'] = {'features': wrapper_out_slow[1],
-                              'accuracy': wrapper_out_slow[2]}
+    slow_wrapper = Wrapper(n=len(selected_features), stop=10, add_im=False)
+    output['slow_wrapper'] = slow_wrapper._execute_fold(cur_fold)
 
     # Random
-    random.shuffle(clusters)
+    output['random'] = RandomModel.execute_with_clusters(
+        cur_fold, clusters, selected_features)
 
-    random_selection = []
-    for cluster in clusters:
-        if len(random_selection) >= len(selected_features):
-            break
-        random_selection.extend(cluster)
-    random_out = calc_accuracy(cur_fold, random_selection)
-    output['random'] = {'features': random_selection,
-                        'accuracy': random_out}
-
-    # Pseudo-random
-    pseudo_selection = []
-    for cluster in clusters:
-        if len(pseudo_selection) >= len(selected_features):
-            break
-        for feat in cluster:
-            if feat not in selected_features and \
-                    feat not in wrapper_out[1]:
-                pseudo_selection.append(feat)
-    pseudo_out = calc_accuracy(cur_fold, pseudo_selection)
-    output['pseudo'] = {'features': pseudo_selection,
-                        'accuracy': pseudo_out}
+    # Pseudo random
+    output['pseudo_random'] = PseudoRandomModel.execute_from_wrap_results(
+        cur_fold, clusters, selected_features,
+        output['fast_wrapper']['features'])
 
     return output
 
 
-def execute(X, y,
-            n_fold=8, n_jobs=-1,
-            fold_seed=1234, seed=1,
-            feature_id=None,
-            null_distribution=False,
-            ):
+def execute_all_models(
+        X, y,
+        n_fold=8, n_jobs=-1,
+        fold_seed=1234, seed=1,
+        feature_id=None,
+        null_distribution=False):
     """ Run every model n_fold times parallel.
     Args:
         X: np.array, FeatureMatrix
@@ -148,7 +109,6 @@ def execute(X, y,
     fold_rng = np.random.default_rng(fold_seed)
 
     np.random.seed(seed)
-    random.seed(seed)
 
     results = []
     jobs = []
@@ -159,8 +119,6 @@ def execute(X, y,
             cur_fold = X_train, y_train, X_val, y_val
         selected_features, clusters = select_features(X_train, y_train)
         jobs.append({
-            "X": X,
-            "y": y,
             "cur_fold": cur_fold,
             "selected_features": selected_features,
             "clusters": clusters

@@ -5,7 +5,7 @@ from scipy import stats
 from sklearn.linear_model import ElasticNet
 from tqdm import tqdm
 
-from protosc.filter_model import train_xvalidate
+from protosc.model.utils import compute_accuracy
 from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
 
@@ -67,10 +67,7 @@ class Chromosome():
             return 0.0
         accuracy = []
         for cur_fold in X.kfold(y, k=8):
-            X_train, y_train, X_val, y_val = cur_fold
-            new_acc = train_xvalidate(X_train[:, list(self.features)], y_train,
-                                      X_val[:, list(self.features)], y_val)
-            accuracy.append(new_acc)
+            accuracy.append(compute_accuracy(cur_fold, self.features))
         return np.mean(accuracy)
 
     @classmethod
