@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
@@ -7,10 +5,7 @@ from scipy import stats
 from scipy.special import betainc
 from sklearn.preprocessing import StandardScaler
 
-
 from protosc.feature_matrix import FeatureMatrix
-from protosc.final_selection import final_selection
-from protosc.parallel import execute_parallel
 
 
 def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
@@ -23,6 +18,25 @@ def train_xvalidate(X_train, y_train, X_val, y_val, kernel="linear"):
 
     y_predict = svclassifier.predict(scaler.transform(X_val))
     return accuracy_score(y_val, y_predict)
+
+
+def compute_accuracy(cur_fold, selected_features):
+    """ Train an SVM on the train set while using the n selected features,
+    crossvalidate on holdout (X/y_val)
+    Args:
+        cur_fold: tuple,
+            contains X_train, y_train, X_val, y_val for current fold.
+        selected_features: list,
+            index of selected features used to train the SVM.
+    Returns:
+        output: int,
+            returns accuracy of trained SVM.
+    """
+    X_train, y_train, X_val, y_val = cur_fold
+    output = train_xvalidate(
+        X_train[:, selected_features], y_train,
+        X_val[:, selected_features], y_val)
+    return output
 
 
 def train_kfold_validate(X, y, features=None):
@@ -172,70 +186,3 @@ def select_features(X, y, chisq_threshold=0.25):  # , fast_chisq=False):
         final_selection.extend(cluster)
 
     return final_selection, clusters
-
-
-def filter_model(X, y, feature_id=None, n_fold=8, fold_seed=None,
-                 null_distribution=False, seed=None):
-    if feature_id is None:
-        feature_id = np.arange(len(y))
-
-    if not isinstance(X, FeatureMatrix):
-        X = FeatureMatrix(X)
-
-    fold_rng = np.random.default_rng(fold_seed)
-
-    # Split data into 8 partitions: later use 1 partition as validating data,
-    # other 7 as train data
-
-    # Train an SVM on the train set while using the selected features
-    # (i.e., making up 25% of chisquare scores), crossvalidate on holdout
-    output_sel = []
-
-    np.random.seed(seed)
-    for cur_fold in X.kfold(y, k=n_fold, rng=fold_rng):
-        X_train, y_train, X_val, y_val = cur_fold
-
-        # Select the top n features needed to make .25
-        if null_distribution:
-            np.random.shuffle(y_train)
-
-        selected_features, _ = select_features(X_train, y_train)
-
-        # Build the SVM model with specified kernel ('linear', 'rbf', 'poly',
-        # 'sigmoid') using only selected features
-        model_sel_output = train_xvalidate(
-            X_train[:, selected_features], y_train,
-            X_val[:, selected_features], y_val)
-        output_sel.append((selected_features, model_sel_output))
-
-    return output_sel
-
-
-def _perform_filter_model(*args, **kwargs):
-    return filter_model(*args, **kwargs)
-
-
-def select_with_filter(X, y, *args, fold_seed=None, n_jobs=-1, **kwargs):
-    if fold_seed is None:
-        fold_seed = np.random.randint(1000000)
-
-    jobs = [{
-        "seed": np.random.randint(0, 192837442),
-        "null_distribution": i != 0}
-            for i in range(101)]
-
-    all_results = execute_parallel(jobs, _perform_filter_model,
-                                   args=(X, y, *args),
-                                   kwargs={"fold_seed": fold_seed, **kwargs},
-                                   progress_bar=True,
-                                   n_jobs=n_jobs)
-
-    null_accuracy = defaultdict(lambda: [])
-    feature_accuracy = all_results[0]
-    for res in all_results[1:]:
-        for i, val in enumerate(res):
-            null_accuracy[i].append(val[1])
-
-    null_accuracy = list(null_accuracy.values())
-    feature_selection = final_selection(feature_accuracy, null_accuracy)
-    return feature_selection

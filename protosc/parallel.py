@@ -24,13 +24,15 @@ def execute_parallel(jobs, target, n_jobs=-1, progress_bar=False, args=[],
     results: list
         Unordered results of the computation.
     """
-#     pbar = tqdm(total=len(jobs))
     if n_jobs is None:
         n_jobs = 1
     elif n_jobs == -1:
         n_jobs = max(1, cpu_count()-1)
 
     queue_size = len(jobs)
+    if queue_size <= 1 or n_jobs <= 1:
+        return execute_sequential(jobs, target, progress_bar, args, kwargs)
+
     job_queue = Queue(maxsize=1000)
     result_queue = Queue()
 
@@ -64,9 +66,18 @@ def execute_parallel(jobs, target, n_jobs=-1, progress_bar=False, args=[],
         job_id = res[0]["job_id"]
         ordered_results[job_id] = res[1]
 
-#     pbar.close()
-
     return ordered_results
+
+
+def execute_sequential(jobs, target, progress_bar=False, args=[],
+                       kwargs={}):
+    if progress_bar:
+        results = []
+        for job in tqdm(jobs):
+            results.append(target(*args, **kwargs, **job))
+    else:
+        results = [target(*args, **kwargs, **job) for job in jobs]
+    return results
 
 
 def _get_all_results(result_queue, progress_bar, queue_size):

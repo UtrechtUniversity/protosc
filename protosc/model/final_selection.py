@@ -11,15 +11,15 @@ def final_selection(feature_accuracy, null_accuracy):
     null_percentile_99 = [np.quantile(x, 0.99) for x in null_accuracy]
 
     # Loop over the folds.
-    for i_val, res in enumerate(feature_accuracy):
+    for i_fold, res in enumerate(feature_accuracy):
         # res[0] is the list with included features.
-        for feature_id in res[0]:
-            feature_results[feature_id][0] += res[1]
-            feature_results[feature_id][1].append(i_val)
+        for feature_id in res["features"]:
+            feature_results[feature_id][0] += res["accuracy"]
+            feature_results[feature_id][1].append(i_fold)
 
         # res[1] is the accuracy with those features.
-        if res[1] > null_percentile_99[i_val]:
-            sign_fold = sign_fold | set([i_val])
+        if res["accuracy"] > null_percentile_99[i_fold]:
+            sign_fold = sign_fold | set([i_fold])
     feature_results = dict(feature_results)
 
     signif_features = []

@@ -1,14 +1,14 @@
-import numpy as np
-from protosc.filter_model import train_xvalidate, select_features
-from protosc.feature_matrix import FeatureMatrix
-from protosc.parallel import execute_parallel
 from copy import deepcopy
 
 
-class Wrapper:
-    def __init__(self, X, y, n=25, n_fold=8, search_space=0.15,
+from protosc.model.utils import train_xvalidate, select_features
+from protosc.model.base import BaseModel
+
+
+class Wrapper(BaseModel):
+    def __init__(self, n=25, n_fold=8, search_space=0.15,
                  decrease=True, add_im=False, excl=False,
-                 stop=5, fold_seed=None, cur_fold=None):
+                 stop=5):
         """
         Args:
             X: np.array, FeatureMatrix
@@ -40,8 +40,6 @@ class Wrapper:
             fold_seed: int,
                 seed
         """
-        self.X = X
-        self.y = y
         self.n = n
         self.n_fold = n_fold
         self.search_space = search_space
@@ -49,26 +47,13 @@ class Wrapper:
         self.add_im = add_im
         self.excl = excl
         self.stop = stop
-        self.fold_seed = fold_seed
-        self.cur_fold = cur_fold
 
-    def copy(self, cur_fold):
+    def copy(self):
         return self.__class__(
-            X=self.X, y=self.y, n=self.n, n_fold=self.n_fold,
+            n=self.n, n_fold=self.n_fold,
             search_space=self.search_space, decrease=self.decrease,
             add_im=self.add_im, excl=self.excl, stop=self.stop,
-            fold_seed=self.fold_seed,
-            cur_fold=cur_fold
         )
-
-    def __check_X(self):
-        """ Ensure X is indeed FeatureMatrix.
-        Returns:
-            X = FeatureMatrix
-        """
-        if not isinstance(self.X, FeatureMatrix):
-            self.X = FeatureMatrix(self.X)
-        return self.X
 
     def __cluster_order(self, clusters):
         """ Define cluster order for search space.
@@ -149,35 +134,7 @@ class Wrapper:
                     selection = new_selection
         return selection, accuracy
 
-    def _wrapper_parallel(self, n_jobs=-1):
-        """ Runs wrapper n_rounds times in parallel
-        Args:
-            n_jobs: int,
-                number of jobs
-        Returns:
-            output: dictionary,
-                model: np.array,
-                    selected clustered features yielding the highest accuracy.
-                features: np.array,
-                    selected features yielding the highest accuracy scores.
-                accuracy: float,
-                    final (and highest) yielded accuracy of model.
-        """
-        output = {}
-        fold_rng = np.random.default_rng(self.fold_seed)
-        jobs = [{"wrapper": self.copy(cur_fold)} for cur_fold in self.X.kfold(
-            self.y, k=self.n_fold, rng=fold_rng)]
-
-        results = execute_parallel(jobs, wrapper_exec, n_jobs=n_jobs,
-                                   progress_bar=True)
-
-        output['model'] = [r[0] for r in results]
-        output['features'] = [r[1] for r in results]
-        output['accuracy'] = [r[2] for r in results]
-
-        return output
-
-    def _wrapper_once(self, cur_fold):
+    def _execute_fold(self, cur_fold):
         """ Runs wrapper one time.
         Args:
             X_train/val: np.array, FeatureMatrix
@@ -230,8 +187,10 @@ class Wrapper:
         # Remove clusters
         selection, accuracy = self._remove_procedure(
             cur_fold, selection, accuracy)
-        return selection.clustered_features, np.array(
-            selection.features, dtype=int), accuracy
+        return {
+            "features": selection.features,
+            "accuracy": accuracy,
+        }
 
     def _add_clusters_direct(self, candidates, cur_selection,
                              cur_accuracy, fold):
@@ -261,35 +220,6 @@ class Wrapper:
         if max_accuracy > cur_accuracy:
             return cur_selection + i_max_accuracy, max_accuracy
         return cur_selection, max_accuracy
-
-    def wrapper(self, n_jobs=1):
-        """ Determines which cluster of features yield the highest accuracy score.
-        Args:
-            n_jobs: int,
-                number of jobs.
-        Returns:
-            output: dictionary,
-                model: np.array,
-                    selected clustered features yielding the highest accuracy.
-                features: np.array,
-                    selected features yielding the highest accuracy scores.
-                accuracy: float,
-                    final (and highest) yielded accuracy of model.
-        """
-        self.X = self.__check_X()
-        # Runs wrapper for n_fold runs parallel:
-        if n_jobs != 1 and self.n_fold != 1:
-            output = self._wrapper_parallel(n_jobs)
-        # Runs wrapper for n_fold times:
-        else:
-            output = {'model': [], 'features': [], 'accuracy': []}
-            fold_rng = np.random.default_rng(self.fold_seed)
-            for cur_fold in self.X.kfold(self.y, k=self.n_fold, rng=fold_rng):
-                model, features, accuracy = self._wrapper_once(cur_fold)
-                output['model'].append(model)
-                output['features'].append(features)
-                output['accuracy'].append(accuracy)
-        return output
 
 
 def wrapper_exec(wrapper):
