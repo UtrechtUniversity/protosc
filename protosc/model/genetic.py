@@ -10,6 +10,51 @@ from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
 
 
+class GeneticModel():
+    def __init__(self, n_chromo=100, mutation_rate=0.1, k_tournament=5,
+                 num_penalty=0.005, n_gen_data=3, n_random_features=100,
+                 signif_criterion=0.5):
+        self.n_chromo = n_chromo
+        self.mutation_rate = mutation_rate
+        self.k_tournament = k_tournament
+        self.num_penalty = num_penalty
+        self.n_gen_data = n_gen_data
+        self.n_random_features = n_random_features
+        self.signif_criterion = signif_criterion
+
+    def execute(self, X, y, seed=None, n_jobs=-1, progress_bar=True):
+        # Make a copy of the feature matrix so we can add random columns.
+        X_copy = X.copy()
+        X_copy.add_random_columns(self.n_random_features)
+
+        # Initialize the population and chromosomes.
+        pop = Population(
+            X_copy, y, n_chromo=self.n_chromo,
+            mutation_rate=self.mutation_rate, k_tournament=self.k_tournament,
+            num_penalty=self.num_penalty, n_jobs=n_jobs)
+
+        # Perform the generations.
+        n_gen = ceil(self.n_gen_data*X_copy.shape[1]/len(pop))
+        results = []
+        with tqdm(total=n_gen) as pbar:
+            for _ in range(n_gen):
+                results.extend(pop.next_generation(pbar=pbar))
+
+        # Initialize and fill the result matrix and outcomes.
+        arr_results = np.zeros((len(results), X_copy.shape[1]))
+        i_row = 0
+        y = np.zeros(len(results))
+        for res, acc in results:
+            arr_results[i_row, res] = 1
+            y[i_row] = acc
+            i_row += 1
+
+        coefs = compute_coefs(arr_results, y, self.n_random_features)
+        features = compute_significant_features(
+            coefs, self.n_random_features, self.signif_criterion)
+        return features
+
+
 class Chromosome():
     def __init__(self, n_tot_features, features):
         """Chromosome for feature selection
@@ -210,6 +255,7 @@ class Population():
         self.mutation_rate = mutation_rate
         self.k_tournament = k_tournament
         self.num_penalty = num_penalty
+        self.n_jobs = n_jobs
 
     def __len__(self):
         return len(self.chromosomes)
@@ -217,8 +263,10 @@ class Population():
     def parallel_accuracy(self):
         """Compute the accuracy of all chromosomes in parallel."""
         jobs = [{"chrom": chrom} for chrom in self.chromosomes]
-        return np.array(execute_parallel(jobs, _compute_parallel_accuracy,
-                                         args=(self.X, self.y)))
+        return np.array(execute_parallel(
+            jobs, _compute_parallel_accuracy,
+            n_jobs=self.n_jobs,
+            args=(self.X, self.y)))
 
     def next_generation(self, pbar=None):
         """Evolve the chromosomes to the next generation (destructively)"""
