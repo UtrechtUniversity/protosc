@@ -6,6 +6,7 @@ from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
 from protosc.model.random import RandomModel
 from protosc.model.pseudo_random import PseudoRandomModel
+from protosc.model.final_selection import final_selection
 
 
 def find_recurring(n_fold, output):
@@ -25,6 +26,25 @@ def find_recurring(n_fold, output):
         if all_features.count(x) == all_runs:
             rec_features.append(x)
     return rec_features
+
+
+def compute_null_accuracy(cur_fold, selected_features):
+    X_train, y_train, X_val, y_val = cur_fold
+    y_train_new = np.random.permutation(y_train)
+    y_val_new = np.random.permutation(y_val)
+    new_fold = (X_train, y_train_new, X_val, y_val_new)
+    return compute_accuracy(new_fold, selected_features)
+
+
+def compute_null_distribution(results, cur_fold, n_tot_results=100):
+    null_distribution = []
+    for i, res in enumerate(results.values()):
+        selected_features = res["features"]
+        n_compute = (n_tot_results-len(null_distribution))//(len(results)-i)
+        for _ in range(n_compute):
+            null_distribution.append(
+                compute_null_accuracy(cur_fold, selected_features))
+    return null_distribution
 
 
 def run_models(cur_fold, selected_features, clusters):
@@ -70,7 +90,7 @@ def run_models(cur_fold, selected_features, clusters):
         cur_fold, clusters, selected_features,
         output['fast_wrapper']['features'])
 
-    return output
+    return output, compute_null_distribution(output, cur_fold)
 
 
 def execute_all_models(
@@ -133,10 +153,14 @@ def execute_all_models(
                                    progress_bar=True)
 
     final_result = {}
-    for model in results[0].keys():
-        dicts = [r[model] for r in results]
-        final_result[model] = {k: [d[k] for d in dicts] for k in dicts[0]}
-        final_result[model]['recurring'] = find_recurring(
-            n_fold, final_result[model])
+    null_dist = [res[1] for res in results]
+    for model in list(results[0][0]):
+        model_output = [res[0][model] for res in results]
+        selection = final_selection(model_output, null_dist)
+        final_result[model] = selection
+#         dicts = [r[model] for r in results]
+#         final_result[model] = {k: [d[k] for d in dicts] for k in dicts[0]}
+#         final_result[model]['recurring'] = find_recurring(
+#             n_fold, final_result[model])
 
     return final_result

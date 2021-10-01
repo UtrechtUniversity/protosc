@@ -115,7 +115,7 @@ def create_categorical_data(n_features=500, n_examples=500,
         fractions = np.random.rand(n_categories)
         fractions = (n_categories/2)*fractions/np.sum(fractions)
         for i_cat in range(n_categories):
-            feature_matrix[split_y[i_cat], i_feature] += (
+            feature_matrix[np.where(split_y[i_cat])[0], i_feature] += (
                 cur_bias*fractions[i_cat])
 
     feature_reorder = np.random.permutation(n_features)
@@ -138,9 +138,12 @@ def compare_results(selected_features, ground_truth):
     selected_bias = np.sum(np.abs(ground_truth["biases"][selected_features]))
     n_total_features = len(ground_truth["selected_features"])
     n_correct_selected = np.sum(ground_truth["biases"][selected_features] != 0)
-    n_false_selected = np.sum(ground_truth["biases"][selected_features] == 0)
-    output = {'%corr_feat':
-              n_correct_selected/(n_correct_selected+n_false_selected),
+#     n_false_selected = np.sum(ground_truth["biases"][selected_features] == 0)
+    if len(selected_features):
+        corr_feat = n_correct_selected/len(selected_features)
+    else:
+        corr_feat = 0
+    output = {'%corr_feat': corr_feat,
               '%feat_found': n_correct_selected/n_total_features,
               '%bias_found': selected_bias/total_bias}
     return output
