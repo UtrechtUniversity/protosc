@@ -274,10 +274,11 @@ class Population():
 
         # Compute the fitness from accuracy and the number of features.
         num_features = np.array([len(chrom) for chrom in self.chromosomes])
-        nz = accuracy > 0
-        fitness = np.zeros_like(accuracy)
-        fitness[nz] = (-np.log(1/accuracy[nz]-1))**2
-        fitness[nz] -= self.num_penalty*num_features[nz]
+#         nz = accuracy > 0
+#         fitness = np.zeros_like(accuracy)
+#         fitness[nz] = (-np.log(1/accuracy[nz]-1))**2
+#         fitness[nz] -= self.num_penalty*num_features[nz]
+        fitness = accuracy - self.num_penalty*num_features
 
         # Gather all information from the current generation.
         results = self.current_results(accuracy)
@@ -403,7 +404,8 @@ def compute_coefs(X_gen, y_gen, n_random=100):
     """
     alpha = 0.0002
     fac = 2
-    y_tilde = (-np.log(1/y_gen-1))**2
+#     y_tilde = (-np.log(1/y_gen-1))**2
+    y_tilde = y_gen
     random_features = np.arange(X_gen.shape[1]-n_random, X_gen.shape[1])
 
     # Set the boundaries for the number of random features with non-zero coefs.
