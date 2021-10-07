@@ -87,6 +87,25 @@ def calc_chisquare(X_training, y_training):
     return X_chisquare
 
 
+def compute_null_accuracy(cur_fold, selected_features):
+    X_train, y_train, X_val, y_val = cur_fold
+    y_train_new = np.random.permutation(y_train)
+    y_val_new = np.random.permutation(y_val)
+    new_fold = (X_train, y_train_new, X_val, y_val_new)
+    return compute_accuracy(new_fold, selected_features)
+
+
+def compute_null_distribution(results, cur_fold, n_tot_results=100):
+    null_distribution = []
+    for i, res in enumerate(results.values()):
+        selected_features = res["features"]
+        n_compute = (n_tot_results-len(null_distribution))//(len(results)-i)
+        for _ in range(n_compute):
+            null_distribution.append(
+                compute_null_accuracy(cur_fold, selected_features))
+    return null_distribution
+
+
 # def fast_chisquare(X_training, y_training):
 #     N = X_training.shape[0]
 #     one_idx = np.where(y_training == 1)[0]

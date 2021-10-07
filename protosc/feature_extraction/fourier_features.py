@@ -4,6 +4,7 @@ from scipy.sparse import csc_matrix
 from scipy.sparse import csr_matrix
 
 from protosc.pipeline import BasePipeElement
+from pathlib import Path
 
 
 class FourierFeatures(BasePipeElement):
@@ -67,13 +68,16 @@ def fourier_ref_func(img_shape, *args, **kwargs):
     return inv_matrix, img_shape
 
 
-def fourier_plot_func(data, i_feature):
+def fourier_plot_func(data, i_feature, plot_dir=None):
     inv_matrix, shape = data
     feature_vec = np.zeros((inv_matrix.shape[1], 1))
     feature_vec[i_feature] = 1
     img = inv_matrix.dot(feature_vec).reshape(shape[:2])
     plt.imshow(img, cmap="binary")
-    plt.show()
+    if plot_dir is not None:
+        plt.savefig(Path(plot_dir, "fourier.png"))
+    else:
+        plt.show()
 
 
 def transform_matrix(shape, n_angular=8, n_spatial=7, return_inverse=True,

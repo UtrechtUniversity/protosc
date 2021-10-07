@@ -35,38 +35,6 @@ class FilterModel(BaseModel):
         return {"features": selected_features, "accuracy": accuracy}
 
 
-def _perform_filter_model(*args, model=None, **kwargs):
-    return model.execute(*args, **kwargs, n_jobs=1)
-
-
-def select_with_filter(X, y, *args, n_fold=8, fold_seed=None, n_jobs=-1,
-                       **kwargs):
-    if fold_seed is None:
-        fold_seed = np.random.randint(1000000)
-
-    jobs = [{
-        "seed": np.random.randint(0, 192837442),
-        "model": FilterModel(n_fold, null_distribution=(i != 0))
-         }
-            for i in range(101)]
-
-    all_results = execute_parallel(jobs, _perform_filter_model,
-                                   args=(X, y, *args),
-                                   kwargs={"fold_seed": fold_seed, **kwargs},
-                                   progress_bar=True,
-                                   n_jobs=n_jobs)
-
-    null_accuracy = defaultdict(lambda: [])
-    feature_accuracy = all_results[0]
-    for res in all_results[1:]:
-        for i_fold, val in enumerate(res):
-            null_accuracy[i_fold].append(val["accuracy"])
-
-    null_accuracy = list(null_accuracy.values())
-    feature_selection = final_selection(feature_accuracy, null_accuracy)
-    return feature_selection
-
-
 def compute_filter_fold(cur_fold):
     X_train, y_train, _X_val, _y_val = cur_fold
 

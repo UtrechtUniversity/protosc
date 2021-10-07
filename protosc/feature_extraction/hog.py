@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from skimage.feature import hog
 
 from protosc.pipeline import BasePipeElement
+from pathlib import Path
 
 
 class HOGFeatures(BasePipeElement):
@@ -65,13 +66,16 @@ class HOGFeatures(BasePipeElement):
 #         return plot
 
 
-def hog_plot(ref_grid, i_feature):
+def hog_plot(ref_grid, i_feature, plot_dir=None):
     data = np.zeros(ref_grid.shape[:2])
     for i in i_feature:
         x, y, _ = np.where(ref_grid == i)
         data[x[0], y[0]] += 1/ref_grid.shape[2]
     plt.imshow(data, cmap="binary", vmin=0, vmax=1)
-    plt.show()
+    if plot_dir is not None:
+        plt.savefig(Path(plot_dir, "hog.png"))
+    else:
+        plt.show()
 
 
 def hog_ref_func(img_shape, hog_cellsize, orientations):

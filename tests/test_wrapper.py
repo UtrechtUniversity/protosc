@@ -1,59 +1,61 @@
 """ Tests wrapper method """
+import numpy as np
+import pytest
 
 from protosc.model.wrapper import Wrapper
 from protosc.simulation import create_correlated_data
-import numpy as np
-
-N_FOLD = 8
-ADD_IM = True
-FOLD_SEED = None
 
 
-def __create_data():
+@pytest.fixture
+def easy_data():
     np.random.seed(1928374)
-    X, y, _ = create_correlated_data()
-    return X, y
+    return create_correlated_data(n_base_features=10, n_true_features=5,
+                                  n_examples=100, min_dev=20, max_dev=30,
+                                  n_feature_correlated=2)
 
 
-def __run_wrapper():
-    X, y = __create_data()
-    return Wrapper(n_fold=N_FOLD, add_im=ADD_IM).execute(
-        X, y, fold_seed=FOLD_SEED)
+@pytest.fixture
+def X(easy_data):
+    return easy_data[0]
 
 
-def __test_model(output):
+@pytest.fixture
+def y(easy_data):
+    return easy_data[1]
+
+
+@pytest.fixture
+def truth(easy_data):
+    return easy_data[2]
+
+
+@pytest.mark.parametrize('n_fold', [3, 8])
+@pytest.mark.parametrize('max_features', [10, 30])
+@pytest.mark.parametrize('search_fraction', [0.8, 1.0])
+@pytest.mark.parametrize('reversed_clusters', [True, False])
+@pytest.mark.parametrize('greedy', [True, False])
+@pytest.mark.parametrize('exclusion_step', [True, False])
+@pytest.mark.parametrize('max_nop_rounds', [4, 6])
+def test_wrapper(X, y, truth, n_fold, max_features, search_fraction,
+                 reversed_clusters, greedy, exclusion_step, max_nop_rounds):
+    assert isinstance(truth, dict)
+    wrapper = Wrapper(n_fold, max_features, search_fraction, reversed_clusters,
+                      greedy, exclusion_step, max_nop_rounds)
+    model_output = wrapper.execute(X, y, fold_seed=1298374)
+    check_model_output(model_output, n_fold=n_fold)
+
+
+def check_model_output(output, n_fold):
     assert isinstance(output, list)
-    assert len(output) == N_FOLD
-    assert all([isinstance(i, dict) for i in output])
+    assert len(output) == n_fold
+    for fold_output in output:
+        assert isinstance(fold_output, dict)
+        assert "features" in fold_output
+        features = fold_output["features"]
+        assert isinstance(features, (list, np.ndarray))
+        if len(features):
+            assert isinstance(features[0], (int, np.int, np.int64))
+        assert len(features) == len(set(features))
 
-
-def __test_features(output):
-    features = [x["features"] for x in output]
-    assert isinstance(features, list)
-    assert len(features) == N_FOLD
-    assert all([isinstance(i, (np.ndarray, list)) for i in features])
-    assert all([len(
-            np.unique(features[i])) == len(features[i]) for i in range(N_FOLD)
-            ])
-
-
-def __test_accuracy(output):
-    accuracy = [x["accuracy"] for x in output]
-    assert isinstance(accuracy, list)
-    assert len(accuracy) == N_FOLD
-    assert all([isinstance(i, float) for i in accuracy])
-
-
-def __test_recurring(output):
-    recurring = output['recurring']
-    new = []
-    [new.extend(i) for i in output['features']]
-    assert isinstance(recurring, list)
-    assert [j for j in recurring if new.count(j) == N_FOLD] == recurring
-
-
-def test_wrapper():
-    output = __run_wrapper()
-    __test_model(output)
-    __test_features(output)
-    __test_accuracy(output)
+        assert "accuracy" in fold_output
+        assert isinstance(fold_output["accuracy"], float)

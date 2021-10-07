@@ -1,6 +1,6 @@
 from protosc.model.utils import compute_accuracy
 from protosc.model.base import BaseModel
-from protosc.model.wrapper import Wrapper
+from protosc.model.wrapper import WrapperModel
 from protosc.model.filter import compute_filter_fold
 
 
@@ -8,7 +8,7 @@ class PseudoRandomModel(BaseModel):
     def __init__(self, *args, **kwargs):
         self.wrapper_args = args
         self.wrapper_kwargs = kwargs
-        self.n_fold = Wrapper(*args, **kwargs).n_fold
+        self.n_fold = WrapperModel(*args, **kwargs).n_fold
 
 #     def execute(self, X, y, *args, fold_seed=None, seed=None, **kwargs):
 #         filter_data = compute_filter_data(X, y, self.n_fold, fold_seed, seed)
@@ -25,7 +25,7 @@ class PseudoRandomModel(BaseModel):
 
     def _execute_fold(self, fold, *args, **kwargs):
         filter_data = compute_filter_fold(fold)
-        wrapper = Wrapper(*self.wrapper_args, **self.wrapper_kwargs)
+        wrapper = WrapperModel(*self.wrapper_args, **self.wrapper_kwargs)
         wrapper_results = wrapper._execute_fold(fold, *args, **kwargs)
         return self.execute_from_wrap_results(
             **filter_data,
