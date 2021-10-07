@@ -56,8 +56,3 @@ def test_select_features():
     assert isinstance(clusters, list)
 
 
-def test_filter_model():
-    X, y, _ = create_simulation_data()
-    X[:10, 0] = 1
-    output = FilterModel().execute(X, y)
-    assert isinstance(output, list)

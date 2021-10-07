@@ -32,6 +32,8 @@ def compute_accuracy(cur_fold, selected_features):
         output: int,
             returns accuracy of trained SVM.
     """
+    if len(selected_features) == 0:
+        return 0
     X_train, y_train, X_val, y_val = cur_fold
     output = train_xvalidate(
         X_train[:, selected_features], y_train,

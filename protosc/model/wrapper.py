@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import numpy as np
+
 from protosc.model.base import BaseFoldModel
 from protosc.model.utils import select_features
 from protosc.model.utils import compute_accuracy
@@ -86,10 +88,10 @@ class WrapperModel(BaseFoldModel):
                 clusters & new highest accuracy).
         """
         exclude = []
-        if not self.exclusion_step or len(selection) <= 1:
+        if len(selection) < 1:
             return selection, accuracy
 
-        for i_cluster in selection.clusters:
+        for i_cluster in deepcopy(selection.clusters):
             # check if removing cluster increases accuracy
             exclude_selection = selection - i_cluster
             accuracy_new = compute_accuracy(fold, exclude_selection.features)
@@ -163,9 +165,11 @@ class WrapperModel(BaseFoldModel):
             else:
                 n_not_added += 1
             selection, accuracy = new_selection, new_accuracy
-        # Remove clusters
-        selection, accuracy = self._remove_procedure(
-            cur_fold, selection, accuracy)
+
+        if self.exclusion_step:
+            # Remove clusters
+            selection, accuracy = self._remove_procedure(
+                cur_fold, selection, accuracy)
         return {
             "features": selection.features,
             "accuracy": accuracy,
@@ -201,11 +205,6 @@ class WrapperModel(BaseFoldModel):
         return cur_selection, max_accuracy
 
 
-def wrapper_exec(wrapper):
-    cur_fold = wrapper.cur_fold
-    return wrapper._wrapper_once(cur_fold)
-
-
 class ClusteredSelection():
     """Class for keeping track of clusters and features.
 
@@ -226,6 +225,10 @@ class ClusteredSelection():
         """
         self.all_clusters = all_clusters
         self.clusters = clusters
+        if isinstance(self.all_clusters, np.ndarray):
+            self.all_clusters = self.all_clusters.tolist()
+        if isinstance(self.clusters, np.ndarray):
+            self.clusters = self.clusters.tolist()
 
     @property
     def features(self):
@@ -233,14 +236,6 @@ class ClusteredSelection():
         cur_features = []
         for i_cluster in self.clusters:
             cur_features.extend(self.all_clusters[i_cluster])
-        return cur_features
-
-    @property
-    def clustered_features(self):
-        """Return the currently selected features grouped by cluster."""
-        cur_features = []
-        for i_cluster in self.clusters:
-            cur_features.append(self.all_clusters[i_cluster])
         return cur_features
 
     def search_space(self, search_fraction, exclude=[]):
@@ -261,7 +256,8 @@ class ClusteredSelection():
         search = [x for x in range(len(self.all_clusters))
                   if x not in self.clusters and x not in exclude]
         # TODO: is this wanted?
-        search = search[:int(len(search)*search_fraction)]
+        n_search = max(1, int(len(search)*search_fraction))
+        search = search[:n_search]
         return search
 
     def copy(self):
@@ -277,9 +273,9 @@ class ClusteredSelection():
     def __sub__(self, i_cluster):
         """Remove a cluster or a ClusteredSelection from the current one."""
         if isinstance(i_cluster, ClusteredSelection):
-            diff_clusters = set(self.clusters) - set(i_cluster)
+            diff_clusters = set(self.clusters) - set(i_cluster.clusters)
             copy = self.copy()
-            copy.clusters = diff_clusters
+            copy.clusters = list(diff_clusters)
         else:
             copy = self.copy()
             copy.clusters.remove(i_cluster)
