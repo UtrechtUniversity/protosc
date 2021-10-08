@@ -15,7 +15,7 @@ from protosc.model.utils import compute_accuracy
 def easy_data():
     np.random.seed(1928374)
     return create_correlated_data(n_base_features=10, n_true_features=5,
-                                  n_examples=100, min_dev=20, max_dev=30,
+                                  n_samples=100, min_dev=20, max_dev=30,
                                   n_feature_correlated=2)
 
 
@@ -56,7 +56,7 @@ def test_wrapper(X, y, truth, n_fold, max_features, search_fraction,
 def test_wrapper_remove():
     np.random.seed(192837)
     X, y, truth = create_correlated_data(n_base_features=50, n_true_features=5,
-                                         n_examples=500, min_dev=0.2, max_dev=0.4,
+                                         n_samples=500, min_dev=0.2, max_dev=0.4,
                                          n_feature_correlated=2)
     fold_rng = np.random.default_rng(102128434)
     fold = [x for x in X.kfold(y, k=8, rng=fold_rng)][0]
