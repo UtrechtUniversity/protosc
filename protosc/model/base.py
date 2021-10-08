@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import inspect
 
 import numpy as np
 
@@ -6,11 +7,30 @@ from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
 from protosc.model.utils import compute_null_accuracy
 from protosc.model.final_selection import final_selection
+from protosc.utils import sig_to_param
 from copy import deepcopy
 
 
 class BaseModel(ABC):
     pass
+
+    @property
+    def default_param(self):
+        """Get the default parameters of the model.
+
+        Returns
+        -------
+        dict:
+            Dictionary with parameter: default value
+        """
+        cur_class = self.__class__
+        default_parameters = sig_to_param(inspect.signature(self.__init__))
+        while cur_class != BaseModel:
+            signature = inspect.signature(super(cur_class, self).__init__)
+            new_parameters = sig_to_param(signature)
+            default_parameters.update(new_parameters)
+            cur_class = cur_class.__bases__[0]
+        return default_parameters
 
 
 class BaseFoldModel(BaseModel):

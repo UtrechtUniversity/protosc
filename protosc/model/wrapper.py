@@ -10,7 +10,7 @@ from protosc.model.utils import compute_accuracy
 class WrapperModel(BaseFoldModel):
     def __init__(self, n_fold=8, max_features=25, search_fraction=0.15,
                  reversed_clusters=True, greedy=False, exclusion_step=False,
-                 max_nop_rounds=5):
+                 max_nop_rounds=10):
         """
         Arguments:
         ----------

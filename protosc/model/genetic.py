@@ -7,9 +7,10 @@ from tqdm import tqdm
 
 from protosc.model.utils import compute_accuracy
 from protosc.parallel import execute_parallel
+from protosc.model.base import BaseModel
 
 
-class GeneticModel():
+class GeneticModel(BaseModel):
     def __init__(self, n_chromo=100, mutation_rate=0.1, k_tournament=5,
                  num_penalty=0.005, n_gen_data=3, n_random_features=100,
                  signif_criterion=0.5):

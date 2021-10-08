@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import inspect
 
-from protosc.utils import get_new_level
+from protosc.utils import get_new_level, sig_to_param
 
 
 class Pipeline(ABC):
@@ -54,14 +54,6 @@ class Pipeline(ABC):
     @property
     def name(self):
         return "+".join([x.name for x in self._elements])
-
-
-def sig_to_param(signature):
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
 
 
 class Plotter():
