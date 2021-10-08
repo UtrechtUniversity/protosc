@@ -10,7 +10,7 @@ from copy import deepcopy
 
 
 class CombinedFoldModel(BaseFoldModel):
-    def __init__(self, settings=None):
+    def __init__(self, n_fold=None, settings=None):
         if settings is None:
             fast_wrapper_settings = WrapperModel().default_param
             fast_wrapper_settings.pop("max_features")
@@ -21,12 +21,11 @@ class CombinedFoldModel(BaseFoldModel):
             slow_wrapper_settings.pop("max_features")
             slow_wrapper_settings.pop("n_fold")
             settings = Settings({
-                "n_fold": 8,
+                "n_fold": n_fold,
                 "fast_wrapper": Settings(fast_wrapper_settings),
                 "slow_wrapper": Settings(slow_wrapper_settings),
             })
-        else:
-            self.n_fold = settings.n_fold
+        self.n_fold = settings.n_fold
         self.settings = settings
 
     @property
@@ -44,12 +43,12 @@ class CombinedFoldModel(BaseFoldModel):
 
         # Wrapper fast
         fast_wrapper = WrapperModel(max_features=len(selected_features),
-                                    **self.settings["fast_wrapper"])
+                                    **self.settings.fast_wrapper.todict())
         output['fast_wrapper'] = fast_wrapper._execute_fold(fold)
 
         # Wrapper slow
         slow_wrapper = WrapperModel(max_features=len(selected_features),
-                                    **self.settings["slow_wrapper"])
+                                    **self.settings.slow_wrapper.todict())
         output['slow_wrapper'] = slow_wrapper._execute_fold(fold)
 
         # Random

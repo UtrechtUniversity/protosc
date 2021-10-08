@@ -101,3 +101,6 @@ class Settings():
                 except KeyError:
                     pass
         raise KeyError(f"Setting '{key}' not found.")
+
+    def todict(self, recursive=False):
+        return self._settings_dict
