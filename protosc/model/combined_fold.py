@@ -19,7 +19,9 @@ class CombinedFoldModel(BaseFoldModel):
             slow_wrapper_settings = WrapperModel().default_param
             slow_wrapper_settings["greedy"] = True
             slow_wrapper_settings.pop("max_features")
-            slow_wrapper_settings.pop("n_fold")
+            n_fold_def = slow_wrapper_settings.pop("n_fold")
+            if n_fold is None:
+                n_fold = n_fold_def
             settings = Settings({
                 "n_fold": n_fold,
                 "fast_wrapper": Settings(fast_wrapper_settings),
