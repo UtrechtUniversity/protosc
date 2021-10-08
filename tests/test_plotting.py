@@ -8,6 +8,13 @@ from protosc.feature_matrix import FeatureMatrix
 from _collections import defaultdict
 
 
+def remove_force(path):
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 def test_plotting():
     pipe1 = ReadImage()*GreyScale()*ViolaJones()*CutCircle()*FourierFeatures()
     pipe2 = ReadImage()*GreyScale()*ViolaJones()*CutCircle()*HOGFeatures()
@@ -29,14 +36,14 @@ def test_plotting():
     assert feature_dict[fourier_pipe] == 56
     output_dir = Path("tests", "temp")
     output_dir.mkdir(exist_ok=True)
-    Path(output_dir, "hog.png").unlink(missing_ok=True)
-    Path(output_dir, "fourier.png").unlink(missing_ok=True)
+    remove_force(Path(output_dir, "hog.png"))
+    remove_force(Path(output_dir, "fourier.png"))
     X.plot([23, 15, 1349, 2348], plot_dir=output_dir)
     assert Path(output_dir, "hog.png").is_file()
     assert Path(output_dir, "fourier.png").is_file()
 
-    Path(output_dir, "hog.png").unlink(missing_ok=True)
-    Path(output_dir, "fourier.png").unlink(missing_ok=True)
+    remove_force(Path(output_dir, "hog.png"))
+    remove_force(Path(output_dir, "fourier.png"))
     X.plot(23, plot_dir=output_dir)
     assert Path(output_dir, "fourier.png").is_file()
     X.plot(1349, plot_dir=output_dir)
