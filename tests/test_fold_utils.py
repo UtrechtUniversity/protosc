@@ -2,7 +2,7 @@ import numpy as np
 
 from protosc.model.utils import train_xvalidate, create_clusters, select_features
 from protosc.model.filter import FilterModel
-from protosc.simulation import create_correlated_data, create_simulation_data
+from protosc.simulation import create_correlated_data, create_independent_data
 from protosc.feature_matrix import FeatureMatrix
 
 
@@ -50,14 +50,9 @@ def test_select_clusters():
 
 
 def test_select_features():
-    X, y, _ = create_simulation_data()
+    X, y, _ = create_independent_data()
     selected_features, clusters = select_features(X, y)
     assert isinstance(selected_features, list)
     assert isinstance(clusters, list)
 
 
-def test_filter_model():
-    X, y, _ = create_simulation_data()
-    X[:10, 0] = 1
-    output = FilterModel().execute(X, y)
-    assert isinstance(output, list)

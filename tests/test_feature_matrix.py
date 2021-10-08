@@ -38,6 +38,19 @@ def test_feature_matrix(n_samples):
     assert fm_copy.X[0, 0] != fm.X[0, 0]
     assert fm_copy.shape == fm.shape
     assert fm_copy.X.shape == fm.X.shape
+    numpy_X = np.copy(fm_copy.X)
+    numpy_X[:, 5:10] = -1
+    fm_copy[:, 1] = -1
+    numpy_X[1, :] = -2
+    fm_copy[1, :] = -2
+    numpy_X[:, np.arange(10, 20)] = -3
+    fm_copy[:, [2, 3]] = -3
+    numpy_X[2] = -4
+    fm_copy[2] = -4
+
+    numpy_X[5:10:3] = -5
+    fm_copy[5:10:3] = -5
+    assert np.all(fm_copy.X == numpy_X)
 
     assert fm.corrcoef(np.random.choice(20, size=10, replace=False)).shape == (10, 10)
 
@@ -46,6 +59,18 @@ def test_feature_matrix(n_samples):
     assert fm[8:12, 18:22].shape == (4, 12)
 
     assert np.allclose(fm[:, -1], fm.X[:, -1].reshape(-1, 1))
+
+    try:
+        fm[1, 2, 3, 4] = 1
+        assert False, "Expected Value error for wrong dimension."
+    except ValueError:
+        pass
+
+    try:
+        _ = fm[1, 2, 3, 4]
+        assert False, "Expected Value error for wrong dimension."
+    except ValueError:
+        pass
 
     fm.add_random_columns(10)
     assert fm.shape == (n_samples, 40)

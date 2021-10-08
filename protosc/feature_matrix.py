@@ -273,7 +273,7 @@ class FeatureMatrix():
             yield (FeatureMatrix(X_train, self.rev_lookup_table), y_train,
                    FeatureMatrix(X_val, self.rev_lookup_table), y_val)
 
-    def plot(self, feature_id):
+    def plot(self, feature_id, plot_dir=None):
         """Plot the relevant features.
 
         If features are part of a feature extraction method that
@@ -307,11 +307,10 @@ class FeatureMatrix():
 
         # Create a plot for each of the pipelines.
         for pipe_id, sub_ids in split_fids.items():
-            print(pipe_id)
             plt.figure(dpi=100)
             plt.axis("off")
             plotter = self.plotters[pipe_id]
-            plotter.plot(sub_ids)
+            plotter.plot(sub_ids, plot_dir=plot_dir)
 
 
 def convert_slice(s, rev_lookup_table):

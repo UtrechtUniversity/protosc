@@ -1,14 +1,15 @@
 import numpy as np
 from protosc.feature_extraction.fourier_features import transform_matrix
-from protosc.feature_extraction.hog import hog_features, HOGFeatures
+from protosc.feature_extraction.hog import HOGFeatures
 from protosc.feature_extraction.color import color_features
 from protosc.feature_extraction.pixel import pixel_features
 # from protosc.feature_extraction import set_color_channels
 import pytest
 
+
 # for test_hog_features:
 @pytest.mark.parametrize('orientations', [9, 8, 7])
-@pytest.mark.parametrize('hog_cellsize', [[10, 10],[5, 5]])
+@pytest.mark.parametrize('hog_cellsize', [[10, 10], [5, 5]])
 def test_hog_features(orientations, hog_cellsize):
     hog = HOGFeatures(orientations=orientations, hog_cellsize=hog_cellsize)
     test_img = np.random.rand(200, 200, 3)
@@ -18,6 +19,7 @@ def test_hog_features(orientations, hog_cellsize):
 
     assert hogs.shape[0] == (test_img.shape[0]/hog_cellsize[0])*(test_img.shape[1]/hog_cellsize[1])*orientations
     assert ref_grid_hog.shape == (test_img.shape[0]/hog_cellsize[0], test_img.shape[1]/hog_cellsize[1], orientations)
+
 
 # for test_color_features, test_pixel_features
 @pytest.mark.parametrize('nchannels', [1, 2, 3])
@@ -30,16 +32,18 @@ def test_color_features(nchannels, nsteps):
     assert color_distributions.shape[0] == nsteps*nchannels
     assert ref_grid.shape == (nchannels, nsteps)
 
+
 # for test_color_features, test_pixel_features
 @pytest.mark.parametrize('nchannels', [1, 2, 3])
 # test_pixel_features
 @pytest.mark.parametrize('newsize', [[25, 25], [50, 50]])
 def test_pixel_features(nchannels, newsize):
     test_img = np.random.rand(200, 200, nchannels)
-    pixel_intensities, ref_grid = pixel_features(test_img,newsize)
+    pixel_intensities, ref_grid = pixel_features(test_img, newsize)
 
     assert pixel_intensities.shape == (1, newsize[0]*newsize[1], nchannels)
     assert ref_grid.shape == (newsize[0], newsize[1], nchannels)
+
 
 # for test_transform_matrix
 @pytest.mark.parametrize('shape', [(21, 31), (22, 22), (30, 21)])

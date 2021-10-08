@@ -1,11 +1,11 @@
 import numpy as np
 
 from protosc.model.utils import compute_accuracy
-from protosc.model.base import BaseModel
+from protosc.model.base import BaseFoldModel
 from protosc.model.filter import compute_filter_fold
 
 
-class RandomModel(BaseModel):
+class RandomModel(BaseFoldModel):
     def _execute_fold(self, fold):
         filter_data = compute_filter_fold(fold)
         return self.execute_with_clusters(**filter_data)

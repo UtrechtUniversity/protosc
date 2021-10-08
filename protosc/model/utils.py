@@ -32,6 +32,8 @@ def compute_accuracy(cur_fold, selected_features):
         output: int,
             returns accuracy of trained SVM.
     """
+    if len(selected_features) == 0:
+        return 0
     X_train, y_train, X_val, y_val = cur_fold
     output = train_xvalidate(
         X_train[:, selected_features], y_train,
@@ -85,6 +87,25 @@ def calc_chisquare(X_training, y_training):
     X_chisquare = np.array(X_chisquare)
 
     return X_chisquare
+
+
+def compute_null_accuracy(cur_fold, selected_features):
+    X_train, y_train, X_val, y_val = cur_fold
+    y_train_new = np.random.permutation(y_train)
+    y_val_new = np.random.permutation(y_val)
+    new_fold = (X_train, y_train_new, X_val, y_val_new)
+    return compute_accuracy(new_fold, selected_features)
+
+
+def compute_null_distribution(results, cur_fold, n_tot_results=100):
+    null_distribution = []
+    for i, res in enumerate(results.values()):
+        selected_features = res["features"]
+        n_compute = (n_tot_results-len(null_distribution))//(len(results)-i)
+        for _ in range(n_compute):
+            null_distribution.append(
+                compute_null_accuracy(cur_fold, selected_features))
+    return null_distribution
 
 
 # def fast_chisquare(X_training, y_training):

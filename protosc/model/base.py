@@ -4,9 +4,18 @@ import numpy as np
 
 from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
+from protosc.model.utils import compute_null_accuracy
+from protosc.model.final_selection import final_selection
+from copy import deepcopy
 
 
 class BaseModel(ABC):
+    pass
+
+
+class BaseFoldModel(BaseModel):
+    interim_data = None
+
     def __init__(self, n_fold=8):
         self.n_fold = n_fold
 
@@ -24,9 +33,24 @@ class BaseModel(ABC):
                 "fold": fold,
                 "seed": seeds[len(jobs)],
             })
-        return execute_parallel(jobs, parallel_model, n_jobs=n_jobs,
-                                progress_bar=progress_bar,
-                                args=[self.copy()])
+
+        feature_res = execute_parallel(
+            jobs, parallel_model, n_jobs=n_jobs, progress_bar=progress_bar,
+            args=[self.copy()])
+        self.add_null_distribution(feature_res, jobs)
+        self.interim_data = feature_res
+        return self._convert_interim(self.interim_data)
+
+    def _convert_interim(self, results):
+        results = deepcopy(results)
+        null_dist = [r.pop("null_distribution") for r in results]
+        return final_selection(results, null_dist)
+
+    def add_null_distribution(self, feature_res, jobs):
+        for i_fold, d in enumerate(feature_res):
+            fold = jobs[i_fold]["fold"]
+            d["null_distribution"] = [
+                compute_null_accuracy(fold, d["features"])for _ in range(100)]
 
     @abstractmethod
     def _execute_fold(self, fold):

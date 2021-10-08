@@ -6,7 +6,6 @@ from sklearn.linear_model import ElasticNet
 from tqdm import tqdm
 
 from protosc.model.utils import compute_accuracy
-from protosc.feature_matrix import FeatureMatrix
 from protosc.parallel import execute_parallel
 
 
@@ -14,6 +13,31 @@ class GeneticModel():
     def __init__(self, n_chromo=100, mutation_rate=0.1, k_tournament=5,
                  num_penalty=0.005, n_gen_data=3, n_random_features=100,
                  signif_criterion=0.5):
+        """
+        n_chromo: int
+            Number of chromosomes to populate (should be even).
+        mutation_rate: float
+            Rate at which the chromosomes mutate.
+        k_tournament: int
+            Number of participant in the tournament selection procedure.
+        num_penalty: float
+            Penalty for having more features selected.
+        n_gen_data: float
+            Amount of data that needs to be generated. The number of
+            generations is directly dependent on this number. It is chosen
+            such that: #chromosomes * #generations >= #features.
+            It is advised to put this above 1, larger numbers result in a
+            performance penalty though.
+        n_random_features: int
+            Number of random columns to add. This is used for finding an
+            appropriate cutoff point for the features. At least 100 are
+            advised. While more is generally better, there are diminishing and
+            eventually decreasing returns.
+        signif_criterion: float
+            Target number of false positives. In practice this is not quite
+            achieved for some datasets, but it should hold that lower numbers
+            mean lower amounts of features selected.
+        """
         self.n_chromo = n_chromo
         self.mutation_rate = mutation_rate
         self.k_tournament = k_tournament
@@ -317,21 +341,21 @@ class Population():
             pbar.update(1)
         return results
 
-    def _test_extra_feature(self, fitness):
-        """Currently unused, but can be used to test the feature penalty."""
-        chrom = self.chromosomes[np.argmax(fitness)]
-        boot_fitness = [chrom.fitness(self.X, self.y, 1) for _ in range(100)]
-        new_chrom = Chromosome(chrom.n_tot_features+1,
-                               chrom.features | set([chrom.n_tot_features]))
-        new_boot_fitness = []
-        for _ in range(100):
-            new_X = FeatureMatrix(
-                np.hstack((self.X.X,
-                           np.random.randn(self.X.shape[0]).reshape(-1, 1))))
-            new_boot_fitness.append(new_chrom.fitness(new_X, self.y))
-        dif_mean = np.mean(boot_fitness) - np.mean(new_boot_fitness)
-        var_std = np.var(new_boot_fitness) - np.var(boot_fitness)
-        print(dif_mean/np.sqrt(var_std))
+#     def _test_extra_feature(self, fitness):
+#         """Currently unused, but can be used to test the feature penalty."""
+#         chrom = self.chromosomes[np.argmax(fitness)]
+#         boot_fitness = [chrom.fitness(self.X, self.y, 1) for _ in range(100)]
+#         new_chrom = Chromosome(chrom.n_tot_features+1,
+#                                chrom.features | set([chrom.n_tot_features]))
+#         new_boot_fitness = []
+#         for _ in range(100):
+#             new_X = FeatureMatrix(
+#                 np.hstack((self.X.X,
+#                            np.random.randn(self.X.shape[0]).reshape(-1, 1))))
+#             new_boot_fitness.append(new_chrom.fitness(new_X, self.y))
+#         dif_mean = np.mean(boot_fitness) - np.mean(new_boot_fitness)
+#         var_std = np.var(new_boot_fitness) - np.var(boot_fitness)
+#         print(dif_mean/np.sqrt(var_std))
 
     def current_results(self, accuracy):
         """Gather all the accuracy > 0 results of this generation."""
@@ -339,56 +363,56 @@ class Population():
                 for i in range(len(self)) if accuracy[i] > 0]
 
 
-def genetic_algorithm(X, y, *args, n_data=3, n_random=100, **kwargs):
-    """Apply the genetic algorithm to the feature matrix.
-
-    Arguments
-    ---------
-    X: FeatureMatrix
-        Feature matrix to be tested/selected from.
-    y: np.ndarray[int]
-        Outcomes of the samples.
-    n_data: float
-        Amount of data that needs to be generated. The number of generations
-        is directly dependent on this number. It is chosen such that:
-        #chromosomes * #generations >= #features.
-        It is advised to put this above 1, larger numbers result in a
-        performance penalty though.
-    n_random: int
-        Number of random columns to add. This is used for finding an
-        appropriate cutoff point for the features. At least 100 are advised.
-        While more is generally better, there are diminishing and eventually
-        decreasing returns.
-
-    Returns
-    -------
-    gen_X, gen_y: (np.ndarray[float, float], np.ndarray[float])
-        A new feature matrix + outcome that can be used to predict the
-        outcome as a function of the included features.
-    """
-    # Make a copy of the feature matrix so we can add random columns.
-    X_copy = X.copy()
-    X_copy.add_random_columns(n_random)
-
-    # Initialize the population and chromosomes.
-    pop = Population(X_copy, y, *args, **kwargs)
-
-    # Perform the generations.
-    n_gen = ceil(n_data*X_copy.shape[1]/len(pop))
-    results = []
-    with tqdm(total=n_gen) as pbar:
-        for _ in range(n_gen):
-            results.extend(pop.next_generation(pbar=pbar))
-
-    # Initialize and fill the result matrix and outcomes.
-    arr_results = np.zeros((len(results), X_copy.shape[1]))
-    i_row = 0
-    y = np.zeros(len(results))
-    for res, acc in results:
-        arr_results[i_row, res] = 1
-        y[i_row] = acc
-        i_row += 1
-    return arr_results, y
+# def genetic_algorithm(X, y, *args, n_data=3, n_random=100, **kwargs):
+#     """Apply the genetic algorithm to the feature matrix.
+#
+#     Arguments
+#     ---------
+#     X: FeatureMatrix
+#         Feature matrix to be tested/selected from.
+#     y: np.ndarray[int]
+#         Outcomes of the samples.
+#     n_data: float
+#         Amount of data that needs to be generated. The number of generations
+#         is directly dependent on this number. It is chosen such that:
+#         #chromosomes * #generations >= #features.
+#         It is advised to put this above 1, larger numbers result in a
+#         performance penalty though.
+#     n_random: int
+#         Number of random columns to add. This is used for finding an
+#         appropriate cutoff point for the features. At least 100 are advised.
+#         While more is generally better, there are diminishing and eventually
+#         decreasing returns.
+#
+#     Returns
+#     -------
+#     gen_X, gen_y: (np.ndarray[float, float], np.ndarray[float])
+#         A new feature matrix + outcome that can be used to predict the
+#         outcome as a function of the included features.
+#     """
+#     # Make a copy of the feature matrix so we can add random columns.
+#     X_copy = X.copy()
+#     X_copy.add_random_columns(n_random)
+#
+#     # Initialize the population and chromosomes.
+#     pop = Population(X_copy, y, *args, **kwargs)
+#
+#     # Perform the generations.
+#     n_gen = ceil(n_data*X_copy.shape[1]/len(pop))
+#     results = []
+#     with tqdm(total=n_gen) as pbar:
+#         for _ in range(n_gen):
+#             results.extend(pop.next_generation(pbar=pbar))
+#
+#     # Initialize and fill the result matrix and outcomes.
+#     arr_results = np.zeros((len(results), X_copy.shape[1]))
+#     i_row = 0
+#     y = np.zeros(len(results))
+#     for res, acc in results:
+#         arr_results[i_row, res] = 1
+#         y[i_row] = acc
+#         i_row += 1
+#     return arr_results, y
 
 
 def _compute_parallel_accuracy(X, y, chrom, n_compute=2):
