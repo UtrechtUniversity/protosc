@@ -62,7 +62,7 @@ def test_pipe_complex_error():
     pipe_complex = PipeComplex(ReadImage()*GreyScale())
     test_files = ["doesnt_exist"]
     res = pipe_complex.execute(test_files)
-    assert isinstance(res[0]["ReadImage+GreyScale"], BaseException)
+    assert isinstance(res[0]["GreyScale"], BaseException)
 
 
 def test_pipeline():

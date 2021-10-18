@@ -14,8 +14,6 @@ class PipeComplex():
     Caching is currently not supported.
     """
     def __init__(self, *pipes):
-        self._pipe_elements = {}
-        self._pipe_tree = {}
         self.pipelines = {}
         self._feature_counts = defaultdict(lambda: 0)
         self.settings = Settings({})
@@ -28,7 +26,7 @@ class PipeComplex():
         for name, pipe in self.pipelines.items():
             name_str = f"{name}".ljust(max_len)
             pipe_str += f"{name_str}: {str(pipe)}\n"
-        return pipe_str
+        return pipe_str[:-1]
 
     def __iadd__(self, other):
         """Add another parallel pipeline/complex/element."""
@@ -77,19 +75,21 @@ class PipeComplex():
 
     def __iter__(self):
         """Looping over a pipe complex generates pipelines."""
-        def generate_pipelines(pipe_tree, cur_elements):
-            for key, new_pipe_tree in pipe_tree.items():
-                if key is None:
-                    yield Pipeline(*cur_elements)
-                else:
-                    cur_elements.append(self._pipe_elements[key])
-                    yield from generate_pipelines(new_pipe_tree, cur_elements)
-                    cur_elements.pop()
-        return generate_pipelines(self._pipe_tree, [])
+        for pipe in self.pipelines.values():
+            yield pipe
+#         def generate_pipelines(pipe_tree, cur_elements):
+#             for key, new_pipe_tree in pipe_tree.items():
+#                 if key is None:
+#                     yield Pipeline(*cur_elements)
+#                 else:
+#                     cur_elements.append(self._pipe_elements[key])
+#                     yield from generate_pipelines(new_pipe_tree, cur_elements)
+#                     cur_elements.pop()
+#         return generate_pipelines(self._pipe_tree, [])
 
     def __len__(self):
         """Return the number of pipelines."""
-        return len([x for x in self])
+        return len(self.pipelines)
 
     def add_complex(self, other):
         for pipeline in other:

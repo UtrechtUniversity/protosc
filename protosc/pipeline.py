@@ -168,9 +168,8 @@ class BasePipeElement(ABC):
     def __eq__(self, other):
         if self.__class__ != other.__class__:
             return False
-        for key, val in self.param.items():
-            if getattr(other, key) != val:
-                return False
+        if self.name != other.name:
+            return False
         return True
 
     @property
