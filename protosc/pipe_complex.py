@@ -77,15 +77,6 @@ class PipeComplex():
         """Looping over a pipe complex generates pipelines."""
         for pipe in self.pipelines.values():
             yield pipe
-#         def generate_pipelines(pipe_tree, cur_elements):
-#             for key, new_pipe_tree in pipe_tree.items():
-#                 if key is None:
-#                     yield Pipeline(*cur_elements)
-#                 else:
-#                     cur_elements.append(self._pipe_elements[key])
-#                     yield from generate_pipelines(new_pipe_tree, cur_elements)
-#                     cur_elements.pop()
-#         return generate_pipelines(self._pipe_tree, [])
 
     def __len__(self):
         """Return the number of pipelines."""
