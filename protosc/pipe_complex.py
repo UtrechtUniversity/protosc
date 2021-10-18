@@ -1,5 +1,7 @@
 from protosc.pipeline import BasePipeElement, Pipeline
 from protosc.utils import get_new_level
+from _collections import defaultdict
+from protosc.utils import Settings
 
 
 class PipeComplex():
@@ -14,11 +16,19 @@ class PipeComplex():
     def __init__(self, *pipes):
         self._pipe_elements = {}
         self._pipe_tree = {}
+        self.pipelines = {}
+        self._feature_counts = defaultdict(lambda: 0)
+        self.settings = Settings({})
         for pipe in pipes:
             self.add_pipeline(pipe)
 
     def __str__(self):
-        return "\n".join([str(p) for p in self])
+        pipe_str = ""
+        max_len = max([len(x) for x in self.pipelines])
+        for name, pipe in self.pipelines.items():
+            name_str = f"{name}".ljust(max_len)
+            pipe_str += f"{name_str}: {str(pipe)}\n"
+        return pipe_str
 
     def __iadd__(self, other):
         """Add another parallel pipeline/complex/element."""
@@ -85,21 +95,26 @@ class PipeComplex():
         for pipeline in other:
             self.add_pipeline(pipeline)
 
+    def get_settings(self):
+        my_settings_dict = {}
+        for name, pipe in self.pipelines.items():
+            my_settings_dict[name] = pipe.settings
+        return Settings(my_settings_dict)
+
     def add_pipeline(self, other):
         """Add a single parallel pipeline to the complex (self)."""
         if isinstance(other, BasePipeElement):
             other = Pipeline(other)
-        tree_pointer = self._pipe_tree
-        for elem in other._elements:
-            if elem.name in tree_pointer:
-                tree_pointer = tree_pointer[elem.name]
-            else:
-                tree_pointer[elem.name] = {}
-                tree_pointer = tree_pointer[elem.name]
 
-            if elem.name not in self._pipe_elements:
-                self._pipe_elements[elem.name] = elem
-        tree_pointer[None] = other.name
+        counts = self._feature_counts[other.name]
+        if counts == 0:
+            pipe_name = f"{other.name}"
+        else:
+            pipe_name = f"{other.name}_{counts+1}"
+        self.pipelines[pipe_name] = other
+
+        self._feature_counts[other.name] += 1
+        self.settings[pipe_name] = other.settings
 
     def execute(self, package, max_depth=None):
         """Execute the pipelines on data.
@@ -116,28 +131,50 @@ class PipeComplex():
             return self.execute_single(package)
 
     def execute_single(self, package):
-        # Use recursion to execute the whole complex tree.
-        def get_result(cur_package, pipe_tree):
+        for pipe_name, pipeline in self.pipelines.items():
+            for elem in pipeline:
+                kwargs = getattr(getattr(self.settings, pipe_name, {}),
+                                 elem.name, {}).todict()
+                for key, val in kwargs.items():
+                    setattr(elem, key, val)
+
+        def split(pipelines, i_elem):
+            all_pipelines = []
+            cur_set = {}
+            cur_compare = None
+            for name, pipe in pipelines.items():
+                if len(cur_set) == 0 or pipe[i_elem] == cur_compare:
+                    cur_set[name] = pipe
+                    cur_compare = pipe[i_elem]
+                else:
+                    all_pipelines.append(cur_set)
+                    cur_set = {name: pipe}
+            if len(cur_set) > 0:
+                all_pipelines.append(cur_set)
+            return all_pipelines
+
+        def get_result(package, pipelines, i_elem=0):
             results = {}
-            for key, new_pipe_tree in pipe_tree.items():
-                # key == None means we're at a leaf of the tree.
-                if key is None:
-                    results[new_pipe_tree] = cur_package
-                    continue
-                element = self._pipe_elements[key]
+            unfinished_pipelines = {}
+            for name, pipe in pipelines.items():
+                if len(pipe) == i_elem:
+                    results[name] = package
+                else:
+                    unfinished_pipelines[name] = pipe
+            split_pipelines = split(unfinished_pipelines, i_elem)
+            for pipes in split_pipelines:
+                element = pipes[list(pipes)[0]][i_elem]
                 try:
-                    # Compute the next element if we're error free.
-                    if not isinstance(cur_package, BaseException):
-                        new_package = element.execute(cur_package)
+                    if not isinstance(package, BaseException):
+                        new_package = element.execute(package)
                     else:
-                        new_package = cur_package
-                    new_result = get_result(new_package, new_pipe_tree)
+                        new_package = package
+                    new_result = get_result(new_package, pipes, i_elem+1)
                 except BaseException as e:
-                    # Store the exception and where it occured.
                     e.source = element.name
-                    new_result = get_result(e, new_pipe_tree)
+                    new_result = get_result(e, pipes, i_elem+1)
                 results.update(new_result)
             return results
 
-        results = get_result(package, self._pipe_tree)
+        results = get_result(package, self.pipelines)
         return results

@@ -73,6 +73,9 @@ class Settings():
 
         self.set_key(key, value)
 
+    def __setitem__(self, key, value):
+        self._settings_dict[key] = value
+
     def __getattr__(self, key):
         if key == "_settings_dict":
             return self._settings_dict
