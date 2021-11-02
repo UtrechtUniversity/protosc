@@ -30,6 +30,7 @@ class RandomPipe(BasePipeElement):
 def test_feature_matrix(n_samples):
     pc = PipeComplex(RandomPipe((20, 5)), RandomPipe(10))
     results = pc.execute([None]*n_samples)
+    print(results)
     fm = FeatureMatrix.from_pipe_data(results)
     assert fm.shape == (n_samples, 30)
     assert fm.X.shape == (n_samples, 110)

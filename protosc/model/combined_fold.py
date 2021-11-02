@@ -5,10 +5,35 @@ from protosc.model.random import RandomModel
 from protosc.model.pseudo_random import PseudoRandomModel
 from protosc.model.final_selection import final_selection
 from protosc.model.base import BaseFoldModel
+from protosc.utils import Settings
 from copy import deepcopy
 
 
 class CombinedFoldModel(BaseFoldModel):
+    def __init__(self, n_fold=None, settings=None):
+        if settings is None:
+            fast_wrapper_settings = WrapperModel().default_param
+            fast_wrapper_settings.pop("max_features")
+            fast_wrapper_settings.pop("n_fold")
+            fast_wrapper_settings["greedy"] = True
+            slow_wrapper_settings = WrapperModel().default_param
+            slow_wrapper_settings["greedy"] = True
+            slow_wrapper_settings.pop("max_features")
+            n_fold_def = slow_wrapper_settings.pop("n_fold")
+            if n_fold is None:
+                n_fold = n_fold_def
+            settings = Settings({
+                "n_fold": n_fold,
+                "fast_wrapper": Settings(fast_wrapper_settings),
+                "slow_wrapper": Settings(slow_wrapper_settings),
+            })
+        self.n_fold = settings.n_fold
+        self.settings = settings
+
+    @property
+    def default_param(self):
+        return self.__class__().settings
+
     def _execute_fold(self, fold):
         output = {}
         selected_features, clusters = select_features(*fold[:2])
@@ -20,12 +45,12 @@ class CombinedFoldModel(BaseFoldModel):
 
         # Wrapper fast
         fast_wrapper = WrapperModel(max_features=len(selected_features),
-                                    max_nop_rounds=10, greedy=True)
+                                    **self.settings.fast_wrapper.todict())
         output['fast_wrapper'] = fast_wrapper._execute_fold(fold)
 
         # Wrapper slow
         slow_wrapper = WrapperModel(max_features=len(selected_features),
-                                    max_nop_rounds=10, greedy=False)
+                                    **self.settings.slow_wrapper.todict())
         output['slow_wrapper'] = slow_wrapper._execute_fold(fold)
 
         # Random

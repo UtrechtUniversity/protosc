@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import inspect
 
-from protosc.utils import get_new_level
+from protosc.utils import get_new_level, sig_to_param, Settings
 
 
 class Pipeline(ABC):
@@ -31,6 +31,12 @@ class Pipeline(ABC):
                 return e
         return new_package
 
+    def __getitem__(self, idx):
+        return self._elements[idx]
+
+    def __len__(self):
+        return len(self._elements)
+
     def __mul__(self, other):
         if isinstance(other, (Pipeline, BasePipeElement)):
             return Pipeline(self, other)
@@ -49,19 +55,18 @@ class Pipeline(ABC):
         return self.__add__(other)
 
     def __str__(self):
-        return "Pipe: " + " -> ".join([x.name for x in self._elements])
+        return " -> ".join([x.name for x in self._elements])
 
+#     def name(self):
+#         return "+".join([x.name for x in self._elements])
     @property
     def name(self):
-        return "+".join([x.name for x in self._elements])
+        return self._elements[-1].name
 
-
-def sig_to_param(signature):
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
+    @property
+    def settings(self):
+        return Settings({elem.name: Settings(elem.param)
+                         for elem in self._elements})
 
 
 class Plotter():
@@ -160,6 +165,13 @@ class BasePipeElement(ABC):
             return PipeComplex(self, other)
         return NotImplemented
 
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            return False
+        if self.name != other.name:
+            return False
+        return True
+
     @property
     def name(self):
         base_name = type(self).__name__
@@ -187,3 +199,8 @@ class BasePipeElement(ABC):
             default_parameters.update(new_parameters)
             cur_class = cur_class.__bases__[0]
         return default_parameters
+
+    @property
+    def param(self):
+        param_names = list(self.default_param)
+        return {x: getattr(self, x) for x in param_names}
