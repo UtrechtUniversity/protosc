@@ -134,19 +134,17 @@ class PipeComplex():
 
 
 def split(pipelines, i_elem):
-    all_pipelines = []
-    cur_set = {}
-    cur_compare = None
-    for name, pipe in pipelines.items():
-        if len(cur_set) == 0 or pipe[i_elem] == cur_compare:
-            cur_set[name] = pipe
-            cur_compare = pipe[i_elem]
-        else:
-            all_pipelines.append(cur_set)
-            cur_set = {name: pipe}
-    if len(cur_set) > 0:
-        all_pipelines.append(cur_set)
-    return all_pipelines
+    split_results = {}
+    for pipe_name, pipe in pipelines.items():
+        elem_name = pipe[i_elem].name
+        if elem_name not in split_results:
+            split_results[elem_name] = [pipe[i_elem], {}]
+        split_results[elem_name][1][pipe_name] = pipe
+    return list(split_results.values())
+
+
+def _print_split(split):
+    return [list(x) for x in split]
 
 
 def get_result(package, pipelines, i_elem=0):
@@ -158,16 +156,16 @@ def get_result(package, pipelines, i_elem=0):
         else:
             unfinished_pipelines[name] = pipe
     split_pipelines = split(unfinished_pipelines, i_elem)
-    for pipes in split_pipelines:
-        element = pipes[list(pipes)[0]][i_elem]
+
+    for element, new_pipelines in split_pipelines:
         try:
             if not isinstance(package, BaseException):
                 new_package = element.execute(package)
             else:
                 new_package = package
-            new_result = get_result(new_package, pipes, i_elem+1)
+            new_result = get_result(new_package, new_pipelines, i_elem+1)
         except BaseException as e:
             e.source = element.name
-            new_result = get_result(e, pipes, i_elem+1)
+            new_result = get_result(e, new_pipelines, i_elem+1)
         results.update(new_result)
     return results

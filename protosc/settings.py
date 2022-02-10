@@ -20,5 +20,5 @@ class ProtoscSettings(Settings):
 default_visual_pipeline = PipeComplex(
     ReadImage()*ViolaJones()*CutCircle()*FourierFeatures(),
     ReadImage()*ViolaJones()*CutCircle()*HOGFeatures(),
-    ReadImage()*FourierFeatures(),
+    ReadImage()*FourierFeatures(cut_circle=False),
 )

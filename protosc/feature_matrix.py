@@ -241,35 +241,54 @@ class FeatureMatrix():
         if rng is None:
             rng = np.random.default_rng()
 
-        X_folds = np.array_split(self.X, k)
-        y_folds = np.array_split(y, k)
+        y = y.reshape(-1)
 
-        # Balance the folds.
-        def balance_fold(X, y):
+        def balanced_selection(y):
             categories = np.unique(y)
             index_list = []
             for cat in categories:
                 index_list.append(np.where(y == cat)[0])
             n_select = np.min([len(x) for x in index_list])
-            select_list = []
-            for cur_idx in index_list:
+            selection = np.zeros(n_select*len(categories), dtype=int)
+            for i, cur_idx in enumerate(index_list):
+                rng.shuffle(cur_idx)
                 if len(cur_idx) == n_select:
-                    select_list.append(cur_idx)
+                    new_idx = cur_idx
                 else:
-                    add_idx = rng.choice(cur_idx, size=n_select, replace=False)
-                    select_list.append(add_idx)
-            select = np.sort(np.concatenate(select_list))
-            return X[select], y[select]
+                    new_idx = rng.choice(cur_idx, size=n_select, replace=False)
+                selection[i::len(categories)] = new_idx
+            return selection, len(categories)
+        if balance:
+            selection, stride = balanced_selection(y)
+        else:
+            selection = rng.permutation(len(y))
+            stride = 1
+
+        def split_selection(selection, k, stride=1):
+            size = len(selection)
+            n_blocks = size//stride
+            cur_block = 0
+            fold_idx = []
+            for i in range(k):
+                n_new_blocks = n_blocks//k + int(i < (n_blocks % k))
+                start = cur_block*stride
+                end = start + n_new_blocks*stride
+                fold_idx.append(selection[np.arange(start, end)])
+                cur_block += n_new_blocks
+            return fold_idx
+
+        assert len(selection) == len(np.unique(selection))
+
+        fold_idx_list = split_selection(selection, k, stride)
 
         for i_fold in range(k):
-            y_val = y_folds[i_fold]
-            X_val = X_folds[i_fold]
-            y_train = np.concatenate(y_folds[0:i_fold] + y_folds[i_fold+1:k])
-            X_train = np.concatenate(X_folds[0:i_fold] + X_folds[i_fold+1:k])
-
-            if balance:
-                X_train, y_train = balance_fold(X_train, y_train)
-                X_val, y_val = balance_fold(X_val, y_val)
+            val_idx = fold_idx_list[i_fold]
+            train_idx = np.concatenate(fold_idx_list[0:i_fold] +
+                                       fold_idx_list[i_fold+1:])
+            all_idx = np.append(val_idx, train_idx)
+            assert len(all_idx) == len(np.unique(all_idx)), all_idx
+            X_train, y_train = self.X[train_idx], y[train_idx]
+            X_val, y_val = self.X[val_idx], y[val_idx]
             yield (FeatureMatrix(X_train, self.rev_lookup_table), y_train,
                    FeatureMatrix(X_val, self.rev_lookup_table), y_val)
 
