@@ -29,6 +29,8 @@ class PixelFeatures(BasePipeElement):
 
 
 def pixel_features(img, newsize=[25, 25]):
+    if len(newsize) < len(img.shape):
+        newsize = np.append(newsize, img.shape[2])
     img = resize(img, np.array(newsize))
     pixel_intensities = np.reshape(img,
                                    [1, img.shape[0]*img.shape[1],
