@@ -33,7 +33,7 @@ def execute_parallel(jobs, target, n_jobs=-1, progress_bar=False, args=[],
     if queue_size <= 1 or n_jobs <= 1:
         return execute_sequential(jobs, target, progress_bar, args, kwargs)
 
-    job_queue = Queue(maxsize=1000)
+    job_queue = Queue(maxsize=queue_size)
     result_queue = Queue()
 
     args = (job_queue, result_queue, target, *args)

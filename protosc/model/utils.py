@@ -129,6 +129,7 @@ def compute_null_distribution(results, cur_fold, n_tot_results=100):
 
 def compute_pval(r, n_data):
     df = n_data - 2
+    r[r >= 1] = 0.99999
     ts = r * r * (df / (1 - r * r))
     p = betainc(0.5 * df, 0.5, df / (df + ts))
     return p

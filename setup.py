@@ -18,5 +18,6 @@ setup(
         'scipy',
         'scikit-image',
         'tqdm',
+        'matplotlib'
     ]
 )
